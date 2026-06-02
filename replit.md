@@ -80,7 +80,14 @@ Ask the assistant (me) any time to install or switch models for you.
 
 - **Backend:** Flask (`app.py`) + `assistant.py` (Ollama calls, web search) + `builder.py`
   (turns AI output into project files, live preview, ZIP export).
-- **Frontend:** `templates/index.html` — two-pane chat + workspace UI.
+- **Frontend:** `templates/index.html` (markup) + `static/styles.css` + `static/app.js` —
+  two-pane chat + a VS Code-style workspace. The code editor is **Monaco** (the same
+  engine VS Code uses), loaded from a CDN, with file tabs, an explorer (create/delete),
+  syntax highlighting, a status bar, Ctrl+S to save, and a settings panel (themes, font,
+  word wrap, minimap). Chats are remembered in your browser between visits.
+- **Live preview safety:** the preview runs your generated app inside a sandboxed frame
+  so its code can't read your chat history or touch your files. Apps that use browser
+  storage still work — the server quietly provides an in-memory stand-in.
 - **Local model:** `qwen2.5-coder:3b` (fits the workspace's memory).
 - **Deployed model:** `qwen2.5-coder:7b` via `start_production.sh` on a Reserved VM.
 - **AI engine:** Ollama, installed through `replit.nix`.

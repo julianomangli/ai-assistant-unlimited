@@ -4,507 +4,204 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI Assistant Unlimited</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:#0a0a0f; --bg-2:#0f1117; --panel:#13151d; --panel-2:#171a23;
-  --border:#23262f; --border-2:#2c303b;
-  --text:#e8eaed; --text-2:#9aa0aa; --text-3:#6b7280;
-  --accent:#7c6cff; --accent-2:#a78bfa; --accent-grad:linear-gradient(135deg,#7c6cff,#a78bfa);
-  --green:#34d399; --red:#f87171; --amber:#fbbf24;
-  --radius:14px; --radius-sm:10px;
-}
-*{box-sizing:border-box}
-html,body{height:100%;margin:0}
-body{
-  font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);
-  display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased;
-}
-button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
-::-webkit-scrollbar{width:10px;height:10px}
-::-webkit-scrollbar-thumb{background:#2a2e38;border-radius:8px;border:2px solid transparent;background-clip:content-box}
-::-webkit-scrollbar-thumb:hover{background:#3a3f4b;background-clip:content-box}
-
-/* ---------- Top bar ---------- */
-.topbar{
-  display:flex;align-items:center;gap:14px;padding:12px 18px;
-  border-bottom:1px solid var(--border);background:var(--bg-2);flex-shrink:0;z-index:10;
-}
-.brand{display:flex;align-items:center;gap:11px;min-width:0}
-.logo{
-  width:38px;height:38px;border-radius:11px;background:var(--accent-grad);
-  display:grid;place-items:center;font-size:20px;box-shadow:0 4px 18px rgba(124,108,255,.4);flex-shrink:0;
-}
-.brand-text h1{font-size:15px;margin:0;font-weight:700;letter-spacing:-.2px}
-.brand-text p{font-size:11px;margin:1px 0 0;color:var(--text-3)}
-.spacer{flex:1}
-.pill{
-  display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--border-2);
-  padding:7px 13px;border-radius:999px;font-size:13px;font-weight:500;
-}
-.pill select{background:none;border:none;color:var(--text);font-size:13px;font-weight:500;outline:none;cursor:pointer}
-.pill select option{background:var(--panel)}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--text-3);flex-shrink:0}
-.dot.on{background:var(--green);box-shadow:0 0 0 3px rgba(52,211,153,.18)}
-.dot.off{background:var(--red);box-shadow:0 0 0 3px rgba(248,113,113,.18)}
-.btn{
-  display:flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--border-2);
-  padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;color:var(--text-2);transition:.15s;
-}
-.btn:hover{background:var(--panel-2);color:var(--text);border-color:#3a3f4b}
-.btn.primary{background:var(--accent-grad);color:#fff;border:none;box-shadow:0 4px 16px rgba(124,108,255,.35)}
-.btn.primary:hover{filter:brightness(1.08)}
-.btn svg{width:15px;height:15px}
-
-/* ---------- Main layout ---------- */
-.main{flex:1;display:flex;min-height:0}
-.chat-col{display:flex;flex-direction:column;min-width:0;width:46%;border-right:1px solid var(--border);transition:width .25s ease}
-.chat-col.full{width:100%;border-right:none}
-.work-col{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg-2)}
-.work-col.hidden{display:none}
-
-/* ---------- Status strip ---------- */
-.status-strip{
-  display:flex;align-items:center;gap:8px;padding:7px 18px;font-size:12px;color:var(--text-3);
-  border-bottom:1px solid var(--border);background:var(--panel);
-}
-.status-strip .dot{width:7px;height:7px}
-
-/* ---------- Chat ---------- */
-.messages{flex:1;overflow-y:auto;padding:22px 0}
-.msg-wrap{max-width:760px;margin:0 auto;padding:0 22px}
-.msg{display:flex;gap:13px;margin-bottom:22px;animation:rise .3s ease}
-@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.avatar{
-  width:30px;height:30px;border-radius:9px;flex-shrink:0;display:grid;place-items:center;font-size:14px;font-weight:700;
-}
-.avatar.ai{background:var(--accent-grad);color:#fff}
-.avatar.user{background:#272b36;color:var(--text-2)}
-.bubble{padding-top:4px;font-size:14.5px;line-height:1.65;color:var(--text);min-width:0;overflow-wrap:anywhere}
-.bubble p{margin:0 0 10px}
-.bubble pre{
-  background:#0c0e14;border:1px solid var(--border);border-radius:10px;padding:13px 15px;overflow-x:auto;
-  font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.6;margin:10px 0;
-}
-.bubble code{font-family:'JetBrains Mono',monospace;font-size:.88em;background:#1b1e27;padding:2px 6px;border-radius:5px}
-.bubble pre code{background:none;padding:0}
-.role{font-size:12px;color:var(--text-3);font-weight:600;margin-bottom:3px}
-
-/* welcome */
-.welcome{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px}
-.welcome .big-logo{width:62px;height:62px;border-radius:18px;background:var(--accent-grad);display:grid;place-items:center;font-size:30px;margin-bottom:20px;box-shadow:0 10px 40px rgba(124,108,255,.45)}
-.welcome h2{font-size:26px;margin:0 0 8px;font-weight:700;letter-spacing:-.5px}
-.welcome p{color:var(--text-2);font-size:14px;max-width:380px;margin:0 0 24px;line-height:1.6}
-.chips{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;max-width:520px}
-.chip{background:var(--panel);border:1px solid var(--border-2);padding:9px 14px;border-radius:10px;font-size:13px;color:var(--text-2);transition:.15s}
-.chip:hover{border-color:var(--accent);color:var(--text);background:var(--panel-2)}
-
-/* typing */
-.typing{display:flex;gap:5px;padding:6px 0}
-.typing span{width:7px;height:7px;border-radius:50%;background:var(--accent-2);animation:bounce 1.3s infinite}
-.typing span:nth-child(2){animation-delay:.16s}.typing span:nth-child(3){animation-delay:.32s}
-@keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-7px);opacity:1}}
-
-/* ---------- Composer ---------- */
-.composer{padding:14px 22px 18px;border-top:1px solid var(--border);background:var(--bg-2)}
-.composer-inner{max-width:760px;margin:0 auto}
-.mode-row{display:flex;gap:6px;margin-bottom:10px}
-.mode-btn{
-  display:flex;align-items:center;gap:6px;padding:6px 13px;border-radius:9px;font-size:12.5px;font-weight:600;
-  color:var(--text-3);background:var(--panel);border:1px solid var(--border);transition:.15s;
-}
-.mode-btn.active{color:#fff;background:var(--accent-grad);border-color:transparent;box-shadow:0 3px 12px rgba(124,108,255,.3)}
-.mode-btn:hover:not(.active){color:var(--text);border-color:var(--border-2)}
-.input-box{
-  display:flex;align-items:flex-end;gap:10px;background:var(--panel);border:1px solid var(--border-2);
-  border-radius:16px;padding:10px 10px 10px 16px;transition:.15s;
-}
-.input-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,108,255,.14)}
-textarea{
-  flex:1;background:none;border:none;outline:none;resize:none;color:var(--text);font-size:14.5px;
-  line-height:1.55;font-family:inherit;max-height:170px;padding:6px 0;
-}
-textarea::placeholder{color:var(--text-3)}
-.send{
-  width:38px;height:38px;border-radius:11px;background:var(--accent-grad);display:grid;place-items:center;
-  flex-shrink:0;transition:.15s;box-shadow:0 4px 14px rgba(124,108,255,.4)
-}
-.send:hover{filter:brightness(1.1)}
-.send:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;filter:none}
-.send svg{width:18px;height:18px;color:#fff}
-.hint{text-align:center;font-size:11px;color:var(--text-3);margin-top:9px}
-
-/* ---------- Workspace ---------- */
-.work-head{display:flex;align-items:center;gap:6px;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--panel)}
-.tab{display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:9px;font-size:13px;font-weight:600;color:var(--text-3);transition:.15s}
-.tab.active{color:var(--text);background:var(--panel-2)}
-.tab:hover:not(.active){color:var(--text-2)}
-.tab svg{width:14px;height:14px}
-.work-actions{margin-left:auto;display:flex;gap:8px}
-.icon-btn{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:var(--text-3);border:1px solid var(--border);background:var(--panel)}
-.icon-btn:hover{color:var(--text);border-color:var(--border-2);background:var(--panel-2)}
-.icon-btn svg{width:15px;height:15px}
-.work-body{flex:1;min-height:0;position:relative}
-
-/* preview */
-.preview-pane{position:absolute;inset:0;display:flex;flex-direction:column;background:#fff}
-.preview-pane.hidden{display:none}
-.preview-frame{flex:1;width:100%;border:none;background:#fff}
-
-/* code */
-.code-pane{position:absolute;inset:0;display:flex;background:var(--bg-2)}
-.code-pane.hidden{display:none}
-.file-tree{width:210px;border-right:1px solid var(--border);overflow-y:auto;padding:8px;flex-shrink:0}
-.tree-title{font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-3);padding:6px 8px;font-weight:700}
-.file-item{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:8px;font-size:12.5px;color:var(--text-2);cursor:pointer;transition:.12s;font-family:'JetBrains Mono',monospace}
-.file-item:hover{background:var(--panel)}
-.file-item.active{background:var(--panel-2);color:var(--text)}
-.file-item svg{width:13px;height:13px;flex-shrink:0;color:var(--text-3)}
-.code-main{flex:1;display:flex;flex-direction:column;min-width:0}
-.code-bar{display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-3);font-family:'JetBrains Mono',monospace}
-.code-bar .save{margin-left:auto;font-size:12px;font-weight:600;color:var(--accent-2);padding:4px 10px;border-radius:7px}
-.code-bar .save:hover{background:var(--panel)}
-.code-edit{flex:1;width:100%;background:#0c0e14;border:none;outline:none;resize:none;color:#e8eaed;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.7;padding:14px 16px}
-.empty-work{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--text-3);padding:30px}
-.empty-work svg{width:46px;height:46px;margin-bottom:14px;opacity:.4}
-.empty-work h3{color:var(--text-2);margin:0 0 6px;font-size:16px}
-.empty-work p{margin:0;font-size:13px;max-width:280px;line-height:1.6}
-
-/* toast */
-.toast-wrap{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;gap:10px}
-.toast{display:flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--border-2);padding:12px 16px;border-radius:11px;font-size:13px;box-shadow:0 10px 40px rgba(0,0,0,.5);animation:rise .25s ease;max-width:420px}
-.toast.err{border-color:rgba(248,113,113,.4)}
-.toast .ti{width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0}
-
-@media(max-width:880px){
-  .chat-col{width:100%;border-right:none}
-  .work-col{position:fixed;inset:48px 0 0;z-index:50}
-  .work-col.hidden{display:none}
-}
-</style>
+<link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
 
-<div class="topbar">
-  <div class="brand">
-    <div class="logo">🤖</div>
-    <div class="brand-text">
+<div id="app" data-theme="dark">
+
+  <!-- ===================== Title bar ===================== -->
+  <header class="titlebar">
+    <div class="brand">
+      <div class="logo">🤖</div>
       <h1>AI Assistant Unlimited</h1>
-      <p>Local · Private · Free</p>
+      <span class="by">by MangliJuliano 🍃</span>
     </div>
-  </div>
-  <div class="spacer"></div>
-  <div class="pill">
-    <span id="modelDot" class="dot"></span>
-    <select id="modelSelect"><option>loading…</option></select>
-  </div>
-  <button class="btn" id="downloadBtn" title="Download project as ZIP">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-    ZIP
-  </button>
-  <button class="btn" id="newBtn">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-    New
-  </button>
-</div>
+    <div class="spacer"></div>
+    <div class="pill">
+      <span id="modelDot" class="dot"></span>
+      <select id="modelSelect"><option>loading…</option></select>
+    </div>
+    <button class="tbtn" id="downloadBtn" disabled title="Build or create files first to enable download">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      ZIP
+    </button>
+    <button class="tbtn" id="newBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      New
+    </button>
+  </header>
 
-<div class="main">
-  <!-- CHAT -->
-  <div class="chat-col full" id="chatCol">
-    <div class="status-strip">
-      <span id="statusDot" class="dot"></span>
-      <span id="statusText">Connecting…</span>
-    </div>
-    <div class="messages" id="messages">
-      <div class="welcome" id="welcome">
-        <div class="big-logo">🤖</div>
-        <h2>What should we build?</h2>
-        <p>Switch to <b>Build</b> mode and describe an app — it appears live on the right, ready to download as a ZIP. Or just <b>Chat</b>.</p>
-        <div class="chips">
-          <button class="chip" data-mode="build" data-prompt="Build a sleek to-do list app with add, complete, and delete, saved in localStorage.">📝 To-do app</button>
-          <button class="chip" data-mode="build" data-prompt="Build a calculator with a modern dark UI.">🧮 Calculator</button>
-          <button class="chip" data-mode="build" data-prompt="Build a colorful landing page for a coffee shop with a hero, menu, and contact section.">☕ Landing page</button>
-          <button class="chip" data-mode="chat" data-prompt="What's new in Python 3.13?">🐍 Latest Python</button>
-        </div>
-      </div>
-    </div>
-    <div class="composer">
-      <div class="composer-inner">
-        <div class="mode-row">
-          <button class="mode-btn active" id="modeChat" data-mode="chat">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            Chat
-          </button>
-          <button class="mode-btn" id="modeBuild" data-mode="build">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-            Build
-          </button>
-        </div>
-        <div class="input-box">
-          <textarea id="input" rows="1" placeholder="Ask anything…"></textarea>
-          <button class="send" id="send" disabled>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
-          </button>
-        </div>
-        <div class="hint">Enter to send · Shift+Enter for new line</div>
-      </div>
-    </div>
-  </div>
+  <!-- ===================== Workbench ===================== -->
+  <div class="workbench" id="workbench">
 
-  <!-- WORKSPACE -->
-  <div class="work-col hidden" id="workCol">
-    <div class="work-head">
-      <button class="tab active" id="tabPreview" data-tab="preview">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/></svg>
-        Preview
-      </button>
-      <button class="tab" id="tabCode" data-tab="code">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-        Code
-      </button>
-      <div class="work-actions">
-        <button class="icon-btn" id="refreshBtn" title="Reload preview">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-        </button>
-        <button class="icon-btn" id="openBtn" title="Open preview in new tab">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        </button>
+    <!-- ---- Chat ---- -->
+    <section class="chat-col" id="chatCol">
+      <div class="chat-status">
+        <span id="statusDot" class="dot"></span>
+        <span id="statusText">Connecting…</span>
       </div>
-    </div>
-    <div class="work-body">
-      <div class="preview-pane" id="previewPane">
-        <iframe class="preview-frame" id="previewFrame" src="/preview/"></iframe>
-      </div>
-      <div class="code-pane hidden" id="codePane">
-        <div class="file-tree">
-          <div class="tree-title">Files</div>
-          <div id="fileList"></div>
-        </div>
-        <div class="code-main">
-          <div class="code-bar">
-            <span id="currentFile">No file selected</span>
-            <button class="save" id="saveBtn">Save</button>
+      <div class="messages" id="messages">
+        <div class="welcome" id="welcome">
+          <div class="big-logo">🤖</div>
+          <h2>What should we build?</h2>
+          <p>Switch to <b>Build</b> mode and describe an app — it appears live on the right in a real code editor, ready to download as a ZIP. Or just <b>Chat</b>.</p>
+          <div class="chips">
+            <button class="chip" data-mode="build" data-prompt="Build a sleek to-do list app with add, complete, and delete, saved in localStorage.">📝 To-do app</button>
+            <button class="chip" data-mode="build" data-prompt="Build a calculator with a modern dark UI.">🧮 Calculator</button>
+            <button class="chip" data-mode="build" data-prompt="Build a colorful landing page for a coffee shop with a hero, menu, and contact section.">☕ Landing page</button>
+            <button class="chip" data-mode="chat" data-prompt="What's new in Python 3.13?">🐍 Latest Python</button>
           </div>
-          <textarea class="code-edit" id="codeEdit" spellcheck="false" placeholder="Select a file to view its code…"></textarea>
         </div>
       </div>
-    </div>
+      <div class="composer">
+        <div class="composer-inner">
+          <div class="mode-row">
+            <button class="mode-btn active" id="modeChat" data-mode="chat">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              Chat
+            </button>
+            <button class="mode-btn" id="modeBuild" data-mode="build">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              Build
+            </button>
+          </div>
+          <div class="input-box">
+            <textarea id="input" rows="1" placeholder="Ask anything…"></textarea>
+            <button class="send" id="send" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+            </button>
+          </div>
+          <div class="hint">Enter to send · Shift+Enter for new line · chats are saved on this device</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- Resizer ---- -->
+    <div class="vsplit" id="vsplit"></div>
+
+    <!-- ---- IDE ---- -->
+    <section class="ide-col" id="ideCol">
+
+      <nav class="activity">
+        <button class="act active" data-view="explorer" title="Explorer (Ctrl+Shift+E)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+        </button>
+        <button class="act" data-view="preview" title="Live preview">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/></svg>
+        </button>
+        <div class="act-spacer"></div>
+        <button class="act" data-view="settings" title="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </nav>
+
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <!-- Explorer -->
+        <div class="side-view" id="explorerView" data-view="explorer">
+          <div class="side-head">
+            Explorer
+            <div class="side-actions">
+              <button id="newFileBtn" title="New file">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+              </button>
+              <button id="refreshFilesBtn" title="Refresh">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="explorer-name">PROJECT</div>
+          <div class="file-list" id="fileList"></div>
+        </div>
+        <!-- Settings -->
+        <div class="side-view hidden" id="settingsView" data-view="settings">
+          <div class="side-head">Settings</div>
+          <div class="settings-body">
+            <div class="set-group">
+              <label class="set-label">App theme</label>
+              <select id="setAppTheme"><option value="dark">Dark</option><option value="light">Light</option></select>
+            </div>
+            <div class="set-group">
+              <label class="set-label">Editor color theme</label>
+              <select id="setEditorTheme">
+                <option value="aiu-midnight">Midnight (custom)</option>
+                <option value="vs-dark">Dark+ (VS Code)</option>
+                <option value="vs">Light+ (VS Code)</option>
+                <option value="hc-black">High Contrast</option>
+              </select>
+            </div>
+            <div class="set-group">
+              <label class="set-label">Editor font</label>
+              <select id="setFontFamily">
+                <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+                <option value="'Fira Code', monospace">Fira Code</option>
+                <option value="Consolas, monospace">Consolas</option>
+                <option value="'Courier New', monospace">Courier New</option>
+                <option value="ui-monospace, monospace">System Mono</option>
+              </select>
+            </div>
+            <div class="set-group">
+              <label class="set-label">Font size <span class="range-val" id="fontSizeVal">13px</span></label>
+              <input type="range" id="setFontSize" min="11" max="22" step="1" value="13">
+            </div>
+            <div class="set-group">
+              <div class="set-row"><span>Word wrap</span><button class="switch" id="setWrap"></button></div>
+              <div class="set-row"><span>Minimap</span><button class="switch on" id="setMinimap"></button></div>
+            </div>
+            <div class="set-hint">
+              Real editor shortcuts work here: <b>Ctrl/Cmd+S</b> save · <b>Ctrl+F</b> find ·
+              <b>F1</b> command palette · <b>Alt+Click</b> multi-cursor · <b>Ctrl+/</b> comment · <b>Ctrl+B</b> toggle sidebar.
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Editor / Preview -->
+      <div class="editor-region">
+        <div class="editor-view" id="editorView">
+          <div class="tabbar" id="tabbar"></div>
+          <div class="editor-host" id="editorHost"></div>
+          <div class="editor-empty" id="editorEmpty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            <h3>Your code editor</h3>
+            <p>Pick a file from the Explorer, or press <kbd>+</kbd> to create one. Build an app in chat and the files open here automatically — a full editor with syntax highlighting and real shortcuts.</p>
+          </div>
+        </div>
+        <div class="preview-view hidden" id="previewView">
+          <div class="preview-toolbar">
+            <div class="preview-url"><span>/preview/</span></div>
+            <button class="pv-btn" id="pvRefresh" title="Reload preview">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </button>
+            <button class="pv-btn" id="pvOpen" title="Open in new tab">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </button>
+          </div>
+          <iframe id="previewFrame" src="/preview/" sandbox="allow-scripts allow-forms allow-popups allow-modals allow-pointer-lock"></iframe>
+        </div>
+      </div>
+    </section>
   </div>
+
+  <!-- ===================== Status bar ===================== -->
+  <footer class="statusbar">
+    <div class="sb-item"><span class="sb-accent">●</span> <span id="sbModel">…</span></div>
+    <div class="sb-spacer"></div>
+    <div class="sb-item" id="sbSaveWrap"><span id="sbSave"></span></div>
+    <div class="sb-item"><span id="sbLang">—</span></div>
+    <div class="sb-item"><span id="sbPos">Ln 1, Col 1</span></div>
+  </footer>
+
 </div>
 
 <div class="toast-wrap" id="toasts"></div>
 
-<script>
-const $ = s => document.querySelector(s);
-const SESSION = "default";
-let mode = "chat";
-let model = null;
-let currentFile = null;
-let busy = false;
-
-const input = $("#input"), send = $("#send"), messages = $("#messages");
-
-/* ---------- mode ---------- */
-function setMode(m){
-  mode = m;
-  $("#modeChat").classList.toggle("active", m==="chat");
-  $("#modeBuild").classList.toggle("active", m==="build");
-  input.placeholder = m==="build" ? "Describe the app you want to build…" : "Ask anything…";
-  if(m==="build") showWorkspace();
-}
-$("#modeChat").onclick = ()=>setMode("chat");
-$("#modeBuild").onclick = ()=>setMode("build");
-
-/* ---------- workspace ---------- */
-function showWorkspace(){
-  $("#workCol").classList.remove("hidden");
-  $("#chatCol").classList.remove("full");
-}
-function setTab(t){
-  $("#tabPreview").classList.toggle("active", t==="preview");
-  $("#tabCode").classList.toggle("active", t==="code");
-  $("#previewPane").classList.toggle("hidden", t!=="preview");
-  $("#codePane").classList.toggle("hidden", t!=="code");
-}
-$("#tabPreview").onclick = ()=>setTab("preview");
-$("#tabCode").onclick = ()=>{ setTab("code"); loadFiles(); };
-$("#refreshBtn").onclick = reloadPreview;
-$("#openBtn").onclick = ()=>window.open("/preview/","_blank");
-
-function reloadPreview(){
-  const f = $("#previewFrame");
-  f.src = "/preview/?t=" + Date.now();
-}
-
-/* ---------- toast ---------- */
-function toast(msg, isErr=true){
-  const el = document.createElement("div");
-  el.className = "toast" + (isErr?" err":"");
-  el.innerHTML = `<span class="ti"></span><span></span>`;
-  el.querySelector("span:last-child").textContent = msg;
-  $("#toasts").appendChild(el);
-  setTimeout(()=>{el.style.opacity="0";el.style.transition=".3s";setTimeout(()=>el.remove(),300)}, 4200);
-}
-
-/* ---------- rendering ---------- */
-function escapeHtml(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
-function renderMarkdown(text){
-  let html = escapeHtml(text);
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g,(_,l,c)=>`<pre><code>${c.replace(/\n$/,"")}</code></pre>`);
-  html = html.replace(/`([^`]+)`/g,"<code>$1</code>");
-  html = html.replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");
-  html = html.split(/\n{2,}/).map(p=>p.trim()?`<p>${p.replace(/\n/g,"<br>")}</p>`:"").join("");
-  return html;
-}
-function addMsg(role, text){
-  const w = $("#welcome"); if(w) w.remove();
-  const wrap = document.createElement("div"); wrap.className="msg-wrap";
-  const msg = document.createElement("div"); msg.className="msg";
-  const isAI = role==="ai";
-  msg.innerHTML = `
-    <div class="avatar ${isAI?'ai':'user'}">${isAI?'🤖':'You'.charAt(0)}</div>
-    <div style="flex:1;min-width:0">
-      <div class="role">${isAI?'Assistant':'You'}</div>
-      <div class="bubble">${isAI?renderMarkdown(text):escapeHtml(text).replace(/\n/g,"<br>")}</div>
-    </div>`;
-  wrap.appendChild(msg); messages.appendChild(wrap);
-  messages.scrollTop = messages.scrollHeight;
-  return msg.querySelector(".bubble");
-}
-function addTyping(){
-  const wrap = document.createElement("div"); wrap.className="msg-wrap"; wrap.id="typingWrap";
-  wrap.innerHTML = `<div class="msg"><div class="avatar ai">🤖</div>
-    <div style="flex:1"><div class="role">Assistant</div>
-    <div class="typing"><span></span><span></span><span></span></div></div></div>`;
-  messages.appendChild(wrap); messages.scrollTop = messages.scrollHeight;
-}
-function removeTyping(){ const t=$("#typingWrap"); if(t)t.remove(); }
-
-/* ---------- send ---------- */
-function autosize(){ input.style.height="auto"; input.style.height=Math.min(input.scrollHeight,170)+"px"; }
-input.addEventListener("input",()=>{ autosize(); send.disabled = !input.value.trim() || busy; });
-input.addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();doSend();} });
-send.onclick = doSend;
-
-async function doSend(){
-  const text = input.value.trim();
-  if(!text || busy) return;
-  busy = true; send.disabled = true;
-  addMsg("user", text);
-  input.value=""; autosize();
-  addTyping();
-  try{
-    if(mode==="build"){ await runBuild(text); }
-    else{ await runChat(text); }
-  }catch(err){
-    removeTyping();
-    toast(err.message || "Something went wrong");
-  }finally{
-    busy=false; send.disabled = !input.value.trim();
-  }
-}
-
-async function runChat(text){
-  const r = await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({message:text, model, session_id:SESSION})});
-  const data = await r.json();
-  removeTyping();
-  if(!r.ok){ toast(data.error||"Request failed"); return; }
-  addMsg("ai", data.response);
-}
-
-async function runBuild(text){
-  showWorkspace();
-  const r = await fetch("/api/build",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({message:text, model, session_id:SESSION})});
-  const data = await r.json();
-  removeTyping();
-  if(!r.ok){ toast(data.error||"Build failed"); return; }
-  const wrote = data.wrote && data.wrote.length ? ` Updated: ${data.wrote.join(", ")}.` : "";
-  addMsg("ai", data.response + wrote);
-  if(data.has_preview){ setTab("preview"); reloadPreview(); }
-  loadFiles();
-}
-
-/* ---------- files ---------- */
-async function loadFiles(){
-  const r = await fetch("/api/project/files");
-  const data = await r.json();
-  const list = $("#fileList"); list.innerHTML="";
-  if(!data.files.length){ list.innerHTML='<div style="padding:10px;color:var(--text-3);font-size:12px">No files yet</div>'; return; }
-  data.files.forEach(f=>{
-    const el = document.createElement("div");
-    el.className="file-item"+(f===currentFile?" active":"");
-    el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`;
-    const label = document.createElement("span");
-    label.textContent = f;
-    el.appendChild(label);
-    el.onclick = ()=>openFile(f);
-    list.appendChild(el);
-  });
-}
-async function openFile(path){
-  const r = await fetch("/api/project/file?path="+encodeURIComponent(path));
-  const data = await r.json();
-  if(!r.ok){ toast(data.error||"Could not open file"); return; }
-  currentFile = path;
-  $("#currentFile").textContent = path;
-  $("#codeEdit").value = data.content;
-  loadFiles();
-}
-$("#saveBtn").onclick = async ()=>{
-  if(!currentFile){ toast("No file selected"); return; }
-  const r = await fetch("/api/project/file",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({path:currentFile, content:$("#codeEdit").value})});
-  if(r.ok){ toast("Saved", false); reloadPreview(); } else { toast("Save failed"); }
-};
-
-/* ---------- download / new ---------- */
-$("#downloadBtn").onclick = ()=>{ window.location = "/api/project/download"; };
-$("#newBtn").onclick = async ()=>{
-  if(!confirm("Start a new project? This clears the current chat and files.")) return;
-  await fetch("/api/clear",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:SESSION})});
-  await fetch("/api/project/clear",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:SESSION})});
-  location.reload();
-};
-
-/* ---------- chips ---------- */
-document.querySelectorAll(".chip").forEach(c=>{
-  c.onclick = ()=>{ setMode(c.dataset.mode); input.value=c.dataset.prompt; autosize(); send.disabled=false; doSend(); };
-});
-
-/* ---------- status ---------- */
-async function loadStatus(){
-  try{
-    const r = await fetch("/api/status"); const d = await r.json();
-    const on = d.ollama_running;
-    $("#statusDot").className = "dot "+(on?"on":"off");
-    $("#modelDot").className = "dot "+(on?"on":"off");
-    $("#statusText").textContent = on
-      ? `Ollama running · ${d.model}${d.web_search?" · Web search on":""}`
-      : "Ollama offline — run: ollama serve";
-    const sel = $("#modelSelect");
-    if(d.models && d.models.length){
-      sel.innerHTML="";
-      d.models.forEach(m=>{ const o=document.createElement("option"); o.value=m; o.textContent=m; sel.appendChild(o); });
-      model = d.model && d.models.includes(d.model) ? d.model : d.models[0];
-      sel.value = model;
-    }else{
-      sel.innerHTML = `<option>${d.model||"no models"}</option>`;
-      model = d.model;
-    }
-  }catch(e){
-    $("#statusText").textContent = "Cannot reach server";
-    $("#statusDot").className="dot off";
-  }
-}
-$("#modelSelect").onchange = e=>{ model = e.target.value; };
-
-loadStatus();
-setInterval(loadStatus, 15000);
-autosize();
-</script>
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.50.0/min/vs/loader.js"></script>
+<script src="/static/app.js"></script>
 </body>
 </html>

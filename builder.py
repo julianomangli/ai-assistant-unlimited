@@ -134,6 +134,27 @@ def clear_project():
     ensure_project_dir()
 
 
+def delete_file(path: str) -> bool:
+    safe = sanitize_path(path)
+    full = os.path.join(PROJECT_DIR, safe)
+    if os.path.isfile(full):
+        os.remove(full)
+        # Clean up now-empty directories (but keep the project root).
+        d = os.path.dirname(full)
+        while d and os.path.abspath(d) != os.path.abspath(PROJECT_DIR):
+            try:
+                os.rmdir(d)
+            except OSError:
+                break
+            d = os.path.dirname(d)
+        return True
+    return False
+
+
+def is_empty() -> bool:
+    return len(list_files()) == 0
+
+
 def has_index() -> bool:
     return os.path.isfile(os.path.join(PROJECT_DIR, "index.html"))
 

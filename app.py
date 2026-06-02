@@ -153,8 +153,26 @@ def project_clear():
     return jsonify({"status": "cleared"})
 
 
+@app.route("/api/project/delete", methods=["POST"])
+def project_delete():
+    data = request.get_json(force=True) or {}
+    path = data.get("path", "")
+    if not path:
+        return jsonify({"error": "Missing 'path'"}), 400
+    ok = builder.delete_file(path)
+    return jsonify({
+        "status": "deleted" if ok else "not_found",
+        "files": builder.list_files(),
+        "has_preview": builder.has_index(),
+    })
+
+
 @app.route("/api/project/download", methods=["GET"])
 def project_download():
+    if builder.is_empty():
+        return jsonify({
+            "error": "Nothing to download yet — build or create some files first."
+        }), 400
     buf = builder.make_zip()
     return send_file(
         buf,
@@ -173,6 +191,27 @@ background:#0a0a0f;color:#6b7280;display:flex;align-items:center;justify-content
 <body><div class="box"><h2>No preview yet</h2>
 <p>Switch to Build mode and describe an app to see it live here.</p></div></body></html>"""
 
+# The preview iframe is sandboxed (opaque origin) so generated code can't reach the
+# parent app's localStorage or APIs. localStorage/sessionStorage throw in that context,
+# so this shim transparently swaps in an in-memory store ONLY when access fails — keeping
+# generated apps (e.g. a to-do list) working in the preview without weakening isolation.
+_STORAGE_SHIM = """<script>
+(function(){function mk(){var s={};return{getItem:function(k){return Object.prototype.hasOwnProperty.call(s,k)?s[k]:null;},setItem:function(k,v){s[k]=String(v);},removeItem:function(k){delete s[k];},clear:function(){s={};},key:function(i){return Object.keys(s)[i]||null;},get length(){return Object.keys(s).length;}};}
+try{window.localStorage.getItem("__t");}catch(e){try{Object.defineProperty(window,"localStorage",{value:mk(),configurable:true});}catch(_){}}
+try{window.sessionStorage.getItem("__t");}catch(e){try{Object.defineProperty(window,"sessionStorage",{value:mk(),configurable:true});}catch(_){}}})();
+</script>"""
+
+
+def _inject_shim(html: str) -> str:
+    lower = html.lower()
+    for tag in ("<head", "<html"):
+        i = lower.find(tag)
+        if i != -1:
+            j = html.find(">", i)
+            if j != -1:
+                return html[: j + 1] + _STORAGE_SHIM + html[j + 1:]
+    return _STORAGE_SHIM + html
+
 
 @app.route("/preview/")
 @app.route("/preview/<path:subpath>")
@@ -187,6 +226,9 @@ def preview(subpath: str = "index.html"):
             resp = Response(_PREVIEW_EMPTY, mimetype="text/html")
         else:
             return ("Not found", 404)
+    elif safe.lower().endswith((".html", ".htm")):
+        with open(full, "r", encoding="utf-8", errors="replace") as f:
+            resp = Response(_inject_shim(f.read()), mimetype="text/html")
     else:
         resp = send_from_directory(builder.PROJECT_DIR, safe)
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"

@@ -1,8 +1,25 @@
-# 🤖 AI Assistant Unlimited
+# 🤖 AI Assistant Unlimited with Real-Time Web Search
 
-A **completely free, unlimited-use AI coding expert assistant** powered by local open-source models. No API keys, no payments, no rate limits—just pure AI power running on your machine.
+A **completely free, unlimited-use AI coding expert assistant** with **real-time web search and automatic version checking**. No API keys, no payments, no rate limits—always up-to-date with the latest information.
 
-## ✨ Features
+## ✨ NEW: Real-Time Information Features
+
+✅ **🌐 Live Web Search** - Get current news, tutorials, and documentation  
+✅ **📦 Automatic Version Checking** - Notified of new releases instantly  
+✅ **🔄 Always Updated** - Never outdated information  
+✅ **🎯 Smart Context** - Searches automatically when you ask about "latest", "new", "update", etc.  
+
+### Example: It Works Like This
+
+**You:** "What's the latest version of Vercel?"  
+**AI:** Shows latest Vercel release with download link + then answers your question with current info
+
+**You:** "How do I use React with TypeScript?"  
+**AI:** Searches for latest React + TypeScript tutorials + provides current best practices
+
+---
+
+## 🎯 Core Features
 
 ✅ **100% Free Forever** - No API costs, no subscriptions, unlimited usage  
 ✅ **Offline & Private** - All processing happens locally on your machine  
@@ -12,6 +29,8 @@ A **completely free, unlimited-use AI coding expert assistant** powered by local
 ✅ **REST API** - Integrate with your other applications  
 ✅ **Conversation Memory** - Maintains context across messages  
 ✅ **GPU Support** - Automatic acceleration with NVIDIA/AMD GPUs  
+✅ **Real-Time Web Search** - Access to current information  
+✅ **Version Tracking** - Know about new releases instantly  
 
 ---
 
@@ -21,6 +40,7 @@ A **completely free, unlimited-use AI coding expert assistant** powered by local
 - **Ollama** (free AI model runner)
 - **4GB+ RAM** (8GB recommended)
 - **Disk space** for models (varies by model, typically 2-13GB)
+- **Internet connection** (optional: for web search features)
 
 ---
 
@@ -98,7 +118,17 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### Step 6: Run the Application
+### Step 6 (Optional): Setup Brave Search API
+
+For faster, higher-quality web search results:
+
+1. Get free API key: [api.search.brave.com](https://api.search.brave.com)
+2. Create `.env` file:
+   ```
+   BRAVE_API_KEY=your_api_key_here
+   ```
+
+### Step 7: Run the Application
 
 ```bash
 python app.py
@@ -108,360 +138,330 @@ You should see:
 ```
 🤖 AI Assistant running at http://localhost:5000
 Model: mistral
+Web Search: Enabled ✅
+Version Checking: Enabled ✅
 ```
 
-### Step 7: Open in Browser
+### Step 8: Open in Browser
 
 Visit **http://localhost:5000** in your web browser and start chatting! 🎉
 
 ---
 
-## 💬 How to Use the Web Interface
+## 💬 How to Use with Real-Time Features
 
-### Basic Chat
+### Web Search - Automatically Triggered
 
-1. Type your question or request in the text box at the bottom
-2. Press **Enter** or click **Send**
-3. Wait for the AI to respond
-4. Ask follow-up questions—context is maintained!
+The AI automatically searches the web when you ask about:
+- **Latest/Newest**: "What's the latest version of X?"
+- **Current Updates**: "What's new in React?"
+- **How-To Guides**: "How do I use Vercel with Next.js?"
+- **Documentation**: "Where can I find FastAPI documentation?"
+- **Errors/Issues**: "How do I fix this error?"
 
-### Change Models
+### Examples
 
-1. Click the **Model** dropdown at the top of the chat box
-2. Select a different model:
-   - **Mistral (Fast)** - For quick answers
-   - **Neural Chat** - For conversations
-   - **Llama 2** - Balanced all-around
-   - **Code Llama** - For programming
+**Question 1:**
+```
+You: "What's the latest Vercel release?"
 
-### Clear Chat History
+AI Response:
+📰 **Latest Search Results:**
+(Updated: 2026-06-02 12:34 UTC)
 
-Click the **Clear** button to start a fresh conversation.
+1. **Vercel v28.5.0 Released**
+   📌 Source: GitHub
+   🔗 URL: https://github.com/vercel/vercel/releases/tag/v28.5.0
+   📝 New features: Edge Functions improvements, better analytics...
+
+🆕 **New Version Available:**
+📦 Package: vercel
+📌 Latest Version: 28.5.0
+📅 Released: 2026-06-02
+📥 Download: [link]
+
+Here are the latest improvements in Vercel:
+- Enhanced Edge Functions with faster execution
+- Improved analytics dashboard
+- [Your AI continues with detailed explanation]
+```
+
+**Question 2:**
+```
+You: "How to use TypeScript with React in 2026?"
+
+AI Response:
+📰 **Latest Search Results:**
+(Updated: 2026-06-02 12:35 UTC)
+
+[Shows 3 latest tutorials and best practices]
+
+🆕 **New Version Available:**
+📦 Package: typescript
+📌 Latest Version: 5.1.6
+...
+
+[AI then provides current best practices with code examples]
+```
 
 ---
 
 ## 🐍 Using as a Python Library
 
-### Basic Usage
+### Basic Usage with Web Search
 
 ```python
 from assistant import AIAssistant
 
-# Initialize
-assistant = AIAssistant(model="mistral")
+# Initialize (web search enabled by default)
+assistant = AIAssistant(model="mistral", enable_web_search=True)
 
-# Ask a question
-response = assistant.chat("Write a Python function to calculate factorial")
+# Ask a question - automatically searches the web
+response = assistant.chat("What's the latest version of Flask?")
 print(response)
 ```
 
-### Streaming Responses
-
-```python
-assistant = AIAssistant(model="mistral")
-
-# Stream the response word-by-word
-print("AI: ", end="", flush=True)
-for chunk in assistant.chat_stream("Explain machine learning in simple terms"):
-    print(chunk, end="", flush=True)
-print()
-```
-
-### Maintain Conversation Context
-
-```python
-assistant = AIAssistant(model="llama2")
-
-# First message
-response1 = assistant.chat("What is Python?")
-print("Q1:", response1)
-
-# Follow-up maintains context
-response2 = assistant.chat("What are its main use cases?")
-print("Q2:", response2)
-
-# Access conversation history
-history = assistant.get_history()
-print(history)
-```
-
-### Custom System Prompts
-
-```python
-# Make it a coding expert
-coding_expert = AIAssistant(
-    model="codellama",
-    system_prompt="You are a senior software engineer with 15 years of experience. "
-                  "Provide detailed, production-ready code with explanations."
-)
-
-code = coding_expert.chat("Design a REST API using FastAPI")
-print(code)
-```
-
-### Switch Models Dynamically
+### Disable Web Search for Specific Queries
 
 ```python
 assistant = AIAssistant()
 
-# Switch between models
-response1 = assistant.chat("Fast answer please", model="mistral")
-response2 = assistant.chat("Detailed analysis", model="llama2")
+# With web search
+response1 = assistant.chat("Latest Python news")  # Searches
+
+# Without web search (offline mode)
+response2 = assistant.chat("Explain Python decorators")  # No search
+```
+
+### Stream with Real-Time Context
+
+```python
+assistant = AIAssistant()
+
+print("AI: ", end="", flush=True)
+for chunk in assistant.chat_stream("Show me latest Node.js updates"):
+    print(chunk, end="", flush=True)
+print()
 ```
 
 ---
 
-## 🌐 Using the REST API
+## 🌐 Using the REST API with Web Search
 
-The app exposes HTTP endpoints for integration with other applications.
-
-### Send a Message
+### Send a Message (Auto Web Search)
 
 ```bash
 curl -X POST http://localhost:5000/api/chat \
   -H "Content-Type: application/json" \
   -d '{
-    "message": "Write a hello world in Python",
-    "model": "mistral"
+    "message": "What are the latest JavaScript frameworks?",
+    "model": "mistral",
+    "enable_web_search": true
   }'
 ```
 
-**Response:**
-```json
-{
-  "response": "Here's a simple Python hello world program:\n\nprint(\"Hello, World!\")\n\nThis is the simplest..."
-}
-```
-
-### Get Available Models
+### Disable Web Search for a Query
 
 ```bash
-curl http://localhost:5000/api/models
-```
-
-**Response:**
-```json
-{
-  "models": ["mistral", "llama2", "neural-chat", "codellama"]
-}
-```
-
-### Clear History
-
-```bash
-curl -X POST http://localhost:5000/api/clear-history
+curl -X POST http://localhost:5000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Explain async/await",
+    "model": "mistral",
+    "enable_web_search": false
+  }'
 ```
 
 ---
 
 ## ⚙️ Configuration
 
-Edit `config.py` to customize behavior:
+Edit `config.py` to customize:
 
 ```python
-# Ollama server address
-OLLAMA_HOST = "http://localhost:11434"
+# Enable/disable web search
+ENABLE_WEB_SEARCH = True
+
+# Enable/disable version checking
+ENABLE_VERSION_CHECK = True
+
+# Brave Search API key (optional)
+BRAVE_API_KEY = "your_api_key"
 
 # Default model
 DEFAULT_MODEL = "mistral"
 
-# Response length limit
+# Response length
 MAX_TOKENS = 2048
 
-# Creativity (0-1, higher = more creative/random)
+# Creativity
 TEMPERATURE = 0.7
-
-# Diversity (0-1, higher = more diverse)
-TOP_P = 0.9
-
-# Web server port
-FLASK_PORT = 5000
 ```
 
 Or use environment variables:
 
 ```bash
-export OLLAMA_HOST="http://localhost:11434"
-export DEFAULT_MODEL="codellama"
-export TEMPERATURE="0.5"
+export ENABLE_WEB_SEARCH="True"
+export ENABLE_VERSION_CHECK="True"
+export BRAVE_API_KEY="your_api_key"
 python app.py
 ```
 
 ---
 
-## 🎯 Example Use Cases
+## 🔍 What Triggers Web Search
 
-### 1. Code Generation
+The assistant automatically searches for:
+
+- **"latest"** - Latest versions, news, updates
+- **"newest"** - New releases
+- **"current"** - Current state of things
+- **"today"** - Today's news/events
+- **"recently"** - Recent developments
+- **"what's new"** - New features
+- **"update"** - Version updates
+- **"release"** - New releases
+- **"how to"** - Tutorials and guides
+- **"documentation"** - Official docs
+- **"error"** - Error solutions
+- **"issue"** - Problem troubleshooting
+
+---
+
+## 📦 Version Checking
+
+Automatically detects and reports new versions for:
+
+**Python Packages** (PyPI)
 ```
-"Write a Python function that validates email addresses using regex"
-"Create a SQL query to find the top 10 customers by revenue"
-"Write a React component for a user login form"
+pip install flask
+django
+requests
 ```
 
-### 2. Learning & Explanation
+**Node.js Packages** (NPM)
 ```
-"Explain how neural networks work in simple terms"
-"What's the difference between async/await and promises in JavaScript?"
-"How does garbage collection work in Python?"
-```
-
-### 3. Debugging & Help
-```
-"Why does this code throw a TypeError? [paste code]"
-"How can I optimize this database query?"
-"What's the best way to handle errors in this function?"
+npm install react
+vue
+typescript
 ```
 
-### 4. Writing & Documentation
+**GitHub Projects**
 ```
-"Write a README for a Python web scraper project"
-"Create API documentation for a REST endpoint"
-"Write unit tests for this function: [paste code]"
+ollama/ollama
+vercel/vercel
+facebook/react
+```
+
+---
+
+## 🎯 Real-World Examples
+
+### Example 1: Web Development
+```
+You: "How do I deploy a Next.js app with Vercel in 2026?"
+
+AI:
+1. Searches for latest Vercel deployment docs
+2. Checks for new Next.js version
+3. Provides current best practices
+4. Includes latest tutorial links
+```
+
+### Example 2: Data Science
+```
+You: "What's new in TensorFlow?"
+
+AI:
+1. Finds latest TensorFlow release
+2. Searches for new features
+3. Shows recent tutorials
+4. Provides migration guides if needed
+```
+
+### Example 3: DevOps
+```
+You: "Latest Docker best practices"
+
+AI:
+1. Searches current Docker documentation
+2. Checks for new Docker version
+3. Shows recent security updates
+4. Provides current examples
 ```
 
 ---
 
 ## 🐛 Troubleshooting
 
-### Error: "Could not connect to Ollama at http://localhost:11434"
-
-**Solution:** Make sure Ollama is running
-```bash
-# Terminal 1 - Start Ollama
-ollama serve
-
-# Terminal 2 - Run the app
-python app.py
+### Web Search Not Working
+```
+✓ Check internet connection
+✓ Try disabling: ENABLE_WEB_SEARCH="False"
+✓ Verify DuckDuckGo is not blocked
+✓ Consider using Brave Search (get free API key)
 ```
 
-### Error: "Out of memory" or slow responses
-
-**Solution:** Use a smaller model
-```bash
-# Try the lightest model
-ollama pull mistral
-
-# Or in Python
-assistant = AIAssistant(model="mistral")
+### Version Checking Errors
+```
+✓ Package might not exist
+✓ PyPI/NPM/GitHub might be temporarily down
+✓ Disable with: ENABLE_VERSION_CHECK="False"
+✓ Check your internet connection
 ```
 
-### Model not found error
-
-**Solution:** Pull the model first
-```bash
-ollama pull llama2
+### Slow Responses
 ```
-
-### Web interface won't load at localhost:5000
-
-**Solutions:**
-- Check if port 5000 is already in use
-- Change port in `config.py`: `FLASK_PORT = 8080`
-- Ensure Flask is installed: `pip install -r requirements.txt`
-- Try http://127.0.0.1:5000 instead
-
-### Responses are very slow
-
-**Solutions:**
-- Close other applications to free up RAM
-- Use a smaller, faster model (mistral)
-- Enable GPU support (see below)
-- Reduce `MAX_TOKENS` in config.py
-
----
-
-## 🎮 GPU Acceleration (Optional)
-
-Speed up responses dramatically with GPU support!
-
-### NVIDIA GPUs (CUDA)
-
-1. Install [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads)
-2. Install [cuDNN](https://developer.nvidia.com/cudnn)
-3. Ollama will automatically detect and use your GPU
-
-### AMD GPUs (ROCm)
-
-```bash
-HIP_VISIBLE_DEVICES=0 ollama serve
-```
-
-### Check GPU Usage
-
-```bash
-# Monitor while chatting
-nvidia-smi watch -n 1  # NVIDIA
+✓ Web search adds 1-3 seconds
+✓ Try disabling web search for speed
+✓ Use faster model (mistral)
+✓ Enable GPU acceleration
 ```
 
 ---
 
-## 📦 Project Structure
+## 🚀 Advanced Features
 
-```
-ai-assistant-unlimited/
-├── app.py                    # Flask web server
-├── assistant.py              # Core AI Assistant class
-├── models.py                 # Ollama API integration
-├── config.py                 # Configuration settings
-├── requirements.txt          # Python dependencies
-├── README.md                 # This file
-├── .gitignore
-├── templates/
-│   └── index.html            # Web interface HTML
-└── static/
-    ├── style.css             # Styling
-    └── script.js             # Frontend JavaScript
-```
-
----
-
-## 🔧 Advanced Features
-
-### Custom Prompts for Different Roles
+### Custom Search Filters
 
 ```python
-# Python expert
-python_expert = AIAssistant(
-    system_prompt="You are a Python expert. Always provide Pythonic, clean code."
-)
+from assistant import AIAssistant
 
-# JavaScript specialist
-js_expert = AIAssistant(
-    system_prompt="You are a JavaScript/Node.js expert with expertise in modern frameworks."
-)
-
-# Writer
-writer = AIAssistant(
-    system_prompt="You are a professional technical writer. Write clearly and concisely."
-)
-```
-
-### Batch Processing
-
-```python
 assistant = AIAssistant()
+# Searches automatically for current data
+response = assistant.chat("Recent advances in AI")
+```
 
-questions = [
-    "What is machine learning?",
-    "Explain supervised learning",
-    "What are neural networks?"
-]
+### Combine Web Search with Custom Prompts
 
-for q in questions:
-    print(f"Q: {q}")
-    print(f"A: {assistant.chat(q)}\n")
+```python
+assistant = AIAssistant(
+    system_prompt="You are a tech news expert. Always cite sources.",
+    enable_web_search=True
+)
+
+response = assistant.chat("Tech news this week")
 ```
 
 ---
 
-## 🤝 Contributing
+## 📊 Performance
 
-Contributions welcome! Some ideas:
-- Add support for more models
-- Improve the web UI
-- Add file upload support
-- Create Docker container
-- Add database for chat history
+| Feature | Speed Impact | Worth It? |
+|---------|--------------|-----------|
+| Web Search | +1-3 seconds | ✅ Yes for current info |
+| Version Checking | +0.5-1 second | ✅ Yes for updates |
+| Offline Mode | Instant | ✅ Yes for speed |
+
+---
+
+## 🔐 Privacy & Security
+
+✅ Local AI models - no data sent to external APIs  
+✅ Web search results cached locally  
+✅ Conversations stored only on your machine  
+✅ No tracking or telemetry  
+✅ Open source - inspect the code  
 
 ---
 
@@ -473,44 +473,33 @@ MIT License - Feel free to use, modify, and distribute
 
 ## ⚠️ Disclaimer
 
-- Model responses are AI-generated and may contain errors
-- Always review code before using in production
-- Models may hallucinate or provide inaccurate information
-- Opinions expressed by the AI are not endorsed
+- Web search results are from third-party sources
+- Always verify important information
+- AI responses may contain errors
+- Always review code before production use
+- Respect robots.txt when web searching
 
 ---
 
 ## 🙋 FAQ
 
-**Q: Is this really free?**  
-A: Yes! Completely free. No API keys, no payments, no limits.
+**Q: Will web search work offline?**  
+A: No, web search requires internet. But the AI model works completely offline.
 
-**Q: Does it work offline?**  
-A: Yes! Everything runs locally. You don't even need internet.
+**Q: Does web search cost money?**  
+A: No! DuckDuckGo is free. Brave Search is optional with free tier.
 
-**Q: Can I use this commercially?**  
-A: Yes! MIT license allows commercial use.
+**Q: How often do results update?**  
+A: Results are fetched in real-time on each query.
 
-**Q: How do I get better results?**  
-A: Use more specific prompts, provide context, and try different models.
+**Q: Can I disable web search?**  
+A: Yes! Set `ENABLE_WEB_SEARCH=False` in config.
 
-**Q: Can I use this on a server?**  
-A: Yes! Change the host in `config.py` from `127.0.0.1` to `0.0.0.0`
-
-**Q: Is my data private?**  
-A: Completely private! All data stays on your machine.
+**Q: Does this send my data anywhere?**  
+A: Web searches are sent to search engines (DuckDuckGo/Brave), but all AI processing is local.
 
 ---
 
-## 📚 Resources
+**🚀 Your AI is now always up-to-date!**
 
-- [Ollama Documentation](https://github.com/ollama/ollama)
-- [Model Library](https://ollama.ai/library)
-- [Flask Documentation](https://flask.palletsprojects.com/)
-- [Prompt Engineering Tips](https://platform.openai.com/docs/guides/prompt-engineering)
-
----
-
-**Happy coding! 🚀**
-
-Need help? Check the troubleshooting section or open an issue on GitHub.
+Never miss an update again. Your AI assistant now brings you the latest information while maintaining complete privacy and offline capabilities.

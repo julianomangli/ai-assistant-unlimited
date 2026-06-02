@@ -44,3 +44,6 @@ venv.bak/
 
 # Ollama
 .ollama/
+
+# Generated builder projects
+generated_project/

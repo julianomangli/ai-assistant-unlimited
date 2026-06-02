@@ -1,0 +1,1 @@
+- [AI Assistant Unlimited project](ai-assistant-unlimited.md) — local Flask+Ollama AI app with in-app web-app builder; hard 5GB RAM/disk limits shape every model decision.

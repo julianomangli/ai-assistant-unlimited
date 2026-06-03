@@ -64,6 +64,52 @@ gunicorn has no Ollama, and the workspace caps at 8GB. A Reserved VM (32GB/8CPU)
   `innerHTML`.** Generated filenames were XSS-injectable via the file tree. Defense in
   depth: `sanitize_path()` also restricts filename chars to `[A-Za-z0-9._-]` and strips
   `..`/leading dots. Preview serving uses `send_from_directory` (traversal-safe).
+- **The live-preview iframe must stay sandboxed WITHOUT `allow-same-origin`.** Generated
+  app code is untrusted; same-origin would let it read the parent's localStorage (chat
+  history) and call `/api/project/*`. Sandbox = `allow-scripts allow-forms allow-popups
+  allow-modals` → opaque origin. Tradeoff: opaque origin makes `localStorage` throw, which
+  breaks generated apps that use it. Fix: the `/preview/` route injects a storage shim
+  (`_inject_shim` in app.py) into HTML responses that swaps in an in-memory store ONLY when
+  real storage access throws. The shim is injection-only — the downloaded ZIP stays clean.
+  Never add `allow-same-origin` to "fix" a storage bug; use/extend the shim instead.
+
+## Frontend / editor
+- Workspace is a VS Code-style IDE: Monaco editor loaded from jsdelivr CDN (worker via
+  data-URI `MonacoEnvironment`). Split into `static/styles.css` + `static/app.js`;
+  `templates/index.html` is just markup + the Monaco loader. Themeable via `[data-theme]`.
+- Monaco needs internet. `initMonaco()` has a watchdog + require error callback that falls
+  back to a plain `<textarea>` (`enableFallback`) so editing still works offline; tab
+  entries carry both `model` (Monaco) and `content` (fallback) — keep both paths in sync.
+- Chat transcript + settings persist in localStorage; New button clears chat. ZIP download
+  is double-guarded: backend `/api/project/download` returns 400 when `builder.is_empty()`,
+  frontend disables the button until files exist.
+
+## Pushing to GitHub (julianomangli/ai-assistant-unlimited, branch main)
+**Why:** No local `git push` from the sandbox; use the GitHub Git Data API instead.
+**How:** token via `listConnections('github')[0].settings.access_token` (never print it) in
+code_execution → GET `git/ref/heads/main` for parent → create a blob per file → create a
+tree with **no `base_tree`** (so the tree is an exact snapshot; any file omitted is dropped)
+→ create commit (author name `MangliJuliano`, email `manglijuliano.business@gmail.com`,
+parent = old head) → PATCH `git/refs/heads/main`. Include ALL files to keep (tracked +
+untracked-not-ignored), since no base_tree means the list is authoritative.
+
+## In-app terminal (real PTY shell)
+**Why:** User wanted a real terminal that can run project `node_modules` libraries.
+**How:** `terminal.py` opens a PTY shell (cwd = `generated_project/`); `app.py` uses
+`flask-sock` (`Sock(app)`) to serve `/ws/terminal`; browser uses xterm.js. `nodejs-20`
+installed so node/npm/npx work. Dev server MUST run `app.run(threaded=True)` or the
+WebSocket blocks normal HTTP.
+**Security model (fail-closed) — do NOT regress:**
+- Terminal is a *real* server shell. Open locally; locked on any deployment.
+- `_is_production()` returns True if `APP_ENV=production` OR any Replit deploy marker
+  (`REPLIT_DEPLOYMENT*`) is present — so forgetting `APP_ENV` does NOT open a shell.
+- In production the terminal is OFF unless `TERMINAL_PASSWORD` secret is set; first WS
+  message must carry that password (`terminal_allowed`).
+- `_ws_origin_ok()` rejects cross-site WebSocket (CSWSH): a browser `Origin` must match
+  `request.host`; missing Origin (non-browser clients) is allowed since the password is
+  the real gate there.
+- WS main loop uses `ws.receive(timeout=1)` so when the shell exits (reader thread sets
+  `stop`) the handler cleans up the PTY promptly instead of hanging.
 
 ## Gotcha
 - Flask caches templates — restart the "Start application" workflow after editing

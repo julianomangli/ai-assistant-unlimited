@@ -44,6 +44,26 @@ You have **two ways** to use this app. Pick whichever fits.
 - **New button** — start a fresh project (clears the chat and files).
 - **Model dropdown** (top right) — switch between installed AI models.
 
+### Workspace tools (right side)
+
+- **Explorer** (file icon) — your project files. The toolbar buttons let you **create a
+  file**, **create a folder**, and **refresh**. Hover any file to **rename** or **delete**
+  it. Everything here is yours to manage by hand — no AI required.
+- **Preview** (eye icon) — the live, running version of your built app.
+- **Terminal** (`>_` icon, or press **Ctrl+`**) — a real command line that runs *inside*
+  your project folder. You can run `node`, `npm`, `python`, install packages, etc. Drag the
+  top edge to resize it.
+- **Settings** (gear, bottom-left of the workspace) — see "Make it yours" below.
+
+### Make it yours (Settings)
+
+Open the gear icon to customize nearly every detail of the editor and terminal: color
+**theme** and **accent color**, font family and size, **line height**, **tab size**,
+cursor **style** and **blink**, line numbers, whitespace marks, font **ligatures**, sticky
+scroll, smooth scrolling, bracket-pair colors, indent guides, **format-on-save**, word wrap,
+minimap, and the terminal's own font size and cursor. A **Reset** button puts everything
+back to defaults. All choices are saved in your browser and applied instantly.
+
 ---
 
 ## ✅ What this app really is (honest expectations)
@@ -79,17 +99,30 @@ Ask the assistant (me) any time to install or switch models for you.
 ## 🛠️ Technical overview (for reference)
 
 - **Backend:** Flask (`app.py`) + `assistant.py` (Ollama calls, web search) + `builder.py`
-  (turns AI output into project files, live preview, ZIP export).
+  (turns AI output into project files, live preview, ZIP export, rename + new folder) +
+  `terminal.py` (opens a real shell via a pseudo-terminal/PTY).
+- **Terminal:** `app.py` runs `flask-sock`; the browser's **xterm.js** connects to
+  `/ws/terminal` over a WebSocket, which is wired to a PTY-backed shell running in your
+  project folder. `nodejs-20` is installed so `node`/`npm`/`npx` work there. The Flask dev
+  server runs `threaded=True` so the WebSocket and normal pages work at once.
 - **Frontend:** `templates/index.html` (markup) + `static/styles.css` + `static/app.js` —
   two-pane chat + a VS Code-style workspace. The code editor is **Monaco** (the same
-  engine VS Code uses), loaded from a CDN, with file tabs, an explorer (create/delete),
-  syntax highlighting, a status bar, Ctrl+S to save, and a settings panel (themes, font,
-  word wrap, minimap). Chats are remembered in your browser between visits.
+  engine VS Code uses), loaded from a CDN, with file tabs, an explorer (create/rename/
+  delete files, create folders), syntax highlighting, a status bar, Ctrl+S to save, a
+  built-in terminal (Ctrl+`), and a deep settings panel. Chats are remembered in your
+  browser between visits.
 - **Live preview safety:** the preview runs your generated app inside a sandboxed frame
   so its code can't read your chat history or touch your files. Apps that use browser
   storage still work — the server quietly provides an in-memory stand-in.
+- **Terminal safety:** the terminal is a *real* shell on the server. It is **open when you
+  run locally** (Option B). On the **published site** it is **OFF by default** — set a
+  `TERMINAL_PASSWORD` secret to turn it on, and it will ask for that password before
+  connecting. The server also refuses cross-site WebSocket connections (only the app's own
+  pages can open the terminal), and fails closed: if a deployment is detected, the terminal
+  stays locked unless a password is set.
 - **Local model:** `qwen2.5-coder:3b` (fits the workspace's memory).
-- **Deployed model:** `qwen2.5-coder:7b` via `start_production.sh` on a Reserved VM.
+- **Deployed model:** `qwen2.5-coder:7b` via `start_production.sh` on a Reserved VM
+  (it also sets `APP_ENV=production`, which locks the terminal unless a password is set).
 - **AI engine:** Ollama, installed through `replit.nix`.
 
 ---

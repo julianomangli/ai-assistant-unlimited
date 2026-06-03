@@ -1,9 +1,65 @@
+import os
+import json
+import select
+import threading
+
+from urllib.parse import urlparse
+
 from flask import Flask, request, jsonify, render_template, send_from_directory, send_file, Response
+from flask_sock import Sock
 from assistant import AIAssistant, BUILDER_SYSTEM_PROMPT
 from config import DEFAULT_MODEL, ENABLE_WEB_SEARCH, ENABLE_VERSION_CHECK
 import builder
+import terminal as term
 
 app = Flask(__name__)
+sock = Sock(app)
+
+# --- Terminal access policy ---------------------------------------------------
+# The terminal runs a real shell on the server. That is exactly what you want for
+# the free local (in-Replit) use, but on the public deployment it would hand a
+# shell to anyone. So: open locally; on the deployed site it is OFF unless the
+# owner sets a TERMINAL_PASSWORD secret (then it asks for that password).
+#
+# Fail closed: we treat the app as "production" if APP_ENV says so OR if any of
+# the platform's deployment markers are present. That way, forgetting to set
+# APP_ENV on a real deployment does NOT accidentally expose an open shell.
+def _is_production() -> bool:
+    if os.environ.get("APP_ENV") == "production":
+        return True
+    for marker in ("REPLIT_DEPLOYMENT", "REPLIT_DEPLOYMENT_ID"):
+        if os.environ.get(marker):
+            return True
+    return False
+
+
+IS_PROD = _is_production()
+TERMINAL_PASSWORD = os.environ.get("TERMINAL_PASSWORD", "")
+
+
+def terminal_enabled() -> bool:
+    return bool(TERMINAL_PASSWORD) or not IS_PROD
+
+
+def terminal_allowed(pw: str) -> bool:
+    if TERMINAL_PASSWORD:
+        return pw == TERMINAL_PASSWORD
+    return not IS_PROD
+
+
+def _ws_origin_ok() -> bool:
+    """Block cross-site WebSocket hijacking: a browser Origin must match our host.
+
+    Non-browser clients (no Origin header) are allowed through here — for those,
+    the password (required in production) remains the real gate.
+    """
+    origin = request.headers.get("Origin")
+    if not origin:
+        return True
+    try:
+        return urlparse(origin).netloc == request.host
+    except Exception:
+        return False
 
 sessions: dict[str, AIAssistant] = {}
 builder_sessions: dict[str, AIAssistant] = {}
@@ -167,6 +223,33 @@ def project_delete():
     })
 
 
+@app.route("/api/project/mkdir", methods=["POST"])
+def project_mkdir():
+    data = request.get_json(force=True) or {}
+    path = data.get("path", "")
+    if not path:
+        return jsonify({"error": "Missing 'path'"}), 400
+    builder.make_dir(path)
+    return jsonify({"status": "created", "files": builder.list_files()})
+
+
+@app.route("/api/project/rename", methods=["POST"])
+def project_rename():
+    data = request.get_json(force=True) or {}
+    src = data.get("src", "")
+    dst = data.get("dst", "")
+    if not src or not dst:
+        return jsonify({"error": "Missing 'src' or 'dst'"}), 400
+    ok, err = builder.rename_path(src, dst)
+    if not ok:
+        return jsonify({"error": err or "Rename failed"}), 400
+    return jsonify({
+        "status": "renamed",
+        "files": builder.list_files(),
+        "has_preview": builder.has_index(),
+    })
+
+
 @app.route("/api/project/download", methods=["GET"])
 def project_download():
     if builder.is_empty():
@@ -264,10 +347,108 @@ def models():
     return jsonify({"models": assistant.get_available_models()})
 
 
+# ----------------------------- Terminal -----------------------------
+
+@app.route("/api/terminal/status", methods=["GET"])
+def terminal_status():
+    return jsonify({
+        "enabled": terminal_enabled(),
+        "needs_password": bool(TERMINAL_PASSWORD),
+    })
+
+
+@sock.route("/ws/terminal")
+def terminal_ws(ws):
+    """Bridge a browser xterm.js terminal to a real bash PTY.
+
+    Protocol — client→server messages are JSON:
+      {"auth": "..."}                first message; password (or "" locally)
+      {"input": "..."}               keystrokes to write to the shell
+      {"resize": {"cols":N,"rows":N}} terminal was resized
+    Server→client messages are raw terminal output strings (written to xterm).
+    """
+    if not _ws_origin_ok():
+        try:
+            ws.send("\r\n\x1b[1;31m Blocked: cross-site terminal connection refused.\x1b[0m\r\n")
+        except Exception:
+            pass
+        return
+    # First message must authenticate.
+    try:
+        first = ws.receive(timeout=15)
+    except Exception:
+        return
+    pw = ""
+    if first:
+        try:
+            pw = (json.loads(first) or {}).get("auth", "")
+        except Exception:
+            pw = ""
+    if not terminal_allowed(pw):
+        msg = (" Terminal is disabled on the live site. Set a TERMINAL_PASSWORD "
+               "secret to enable it." if IS_PROD else " Access denied.")
+        try:
+            ws.send("\r\n\x1b[1;31m" + msg + "\x1b[0m\r\n")
+        except Exception:
+            pass
+        return
+
+    proc, master_fd = term.open_pty_shell(builder.PROJECT_DIR)
+    stop = threading.Event()
+    send_lock = threading.Lock()
+
+    def pump_output():
+        while not stop.is_set():
+            try:
+                r, _, _ = select.select([master_fd], [], [], 0.2)
+                if master_fd in r:
+                    data = os.read(master_fd, 4096)
+                    if not data:
+                        break
+                    with send_lock:
+                        ws.send(data.decode("utf-8", "replace"))
+            except (OSError, ValueError):
+                break
+            except Exception:
+                break
+        stop.set()
+
+    reader = threading.Thread(target=pump_output, daemon=True)
+    reader.start()
+
+    try:
+        while not stop.is_set():
+            try:
+                msg = ws.receive(timeout=1)
+            except Exception:
+                break  # connection closed
+            if msg is None:
+                # Timed out waiting for input; loop again so we notice when the
+                # shell has exited (reader thread sets `stop`) and clean up fast.
+                if stop.is_set() or not reader.is_alive():
+                    break
+                continue
+            try:
+                obj = json.loads(msg)
+            except Exception:
+                continue
+            if "input" in obj:
+                try:
+                    os.write(master_fd, obj["input"].encode("utf-8"))
+                except OSError:
+                    break
+            elif "resize" in obj:
+                rz = obj["resize"] or {}
+                term.set_winsize(master_fd, rz.get("rows", 24), rz.get("cols", 80))
+    finally:
+        stop.set()
+        term.terminate(proc, master_fd)
+
+
 if __name__ == "__main__":
     print("🤖 AI Assistant Unlimited")
     print(f"   Model: {DEFAULT_MODEL}")
     print(f"   Web Search: {'Enabled ✅' if ENABLE_WEB_SEARCH else 'Disabled ❌'}")
     print(f"   Version Checking: {'Enabled ✅' if ENABLE_VERSION_CHECK else 'Disabled ❌'}")
     print("   Running at http://0.0.0.0:5000")
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)

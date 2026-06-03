@@ -47,3 +47,8 @@ venv.bak/
 
 # Generated builder projects
 generated_project/
+
+# Node
+node_modules/
+package-lock.json
+npm-debug.log*

@@ -151,6 +151,40 @@ def delete_file(path: str) -> bool:
     return False
 
 
+def make_dir(path: str) -> str:
+    """Create a folder inside the project. Returns the sanitized relative path."""
+    safe = sanitize_path(path)
+    full = os.path.join(PROJECT_DIR, safe)
+    os.makedirs(full, exist_ok=True)
+    return safe
+
+
+def rename_path(src: str, dst: str):
+    """Rename/move a file or folder within the project.
+
+    Returns (ok, error_message). Refuses to overwrite an existing destination.
+    """
+    src_safe = sanitize_path(src)
+    dst_safe = sanitize_path(dst)
+    src_full = os.path.join(PROJECT_DIR, src_safe)
+    dst_full = os.path.join(PROJECT_DIR, dst_safe)
+    if not os.path.exists(src_full):
+        return False, "Source not found"
+    if os.path.exists(dst_full):
+        return False, "A file with that name already exists"
+    os.makedirs(os.path.dirname(dst_full) or PROJECT_DIR, exist_ok=True)
+    shutil.move(src_full, dst_full)
+    # Prune now-empty source directories.
+    d = os.path.dirname(src_full)
+    while d and os.path.abspath(d) != os.path.abspath(PROJECT_DIR):
+        try:
+            os.rmdir(d)
+        except OSError:
+            break
+        d = os.path.dirname(d)
+    return True, None
+
+
 def is_empty() -> bool:
     return len(list_files()) == 0
 

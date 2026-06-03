@@ -7,6 +7,10 @@ set -u
 export DEFAULT_MODEL="${DEFAULT_MODEL:-qwen2.5-coder:7b}"
 export OLLAMA_HOST="127.0.0.1:11434"
 
+# Marks this as the public deployment. The in-app terminal stays OFF here unless a
+# TERMINAL_PASSWORD secret is set (otherwise it would hand a shell to any visitor).
+export APP_ENV="production"
+
 echo "[startup] Launching Ollama server..."
 ollama serve &
 

@@ -23,6 +23,13 @@ function loadChat(){ try{ return JSON.parse(localStorage.getItem(STORE.chat)||"[
 const defaultSettings = {
   appTheme:"dark", editorTheme:"aiu-midnight", fontSize:13,
   fontFamily:"'JetBrains Mono', monospace", wordWrap:false, minimap:true,
+  accent:"#7c6cff",
+  lineHeight:1.5, tabSize:2,
+  cursorStyle:"line", cursorBlink:"smooth",
+  lineNumbers:"on", whitespace:"selection",
+  ligatures:false, sticky:true, smooth:true, bracketColors:true,
+  indentGuides:true, formatOnSave:false,
+  termFontSize:13, termCursor:"block",
 };
 let settings = Object.assign({}, defaultSettings);
 function loadSettings(){
@@ -179,7 +186,11 @@ async function loadFiles(){
     el.className = "file-item" + (f===activePath?" active":"");
     el.innerHTML = `<svg class="fi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`;
     const name = document.createElement("span"); name.className="fi-name"; name.textContent=f; el.appendChild(name);
-    const del = document.createElement("button"); del.className="fi-del"; del.title="Delete file";
+    const ren = document.createElement("button"); ren.className="fi-act"; ren.title="Rename / move";
+    ren.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>`;
+    ren.onclick = (e)=>{ e.stopPropagation(); renameFile(f); };
+    el.appendChild(ren);
+    const del = document.createElement("button"); del.className="fi-act fi-del"; del.title="Delete file";
     del.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
     del.onclick = (e)=>{ e.stopPropagation(); deleteFile(f); };
     el.appendChild(del);
@@ -198,6 +209,32 @@ $("#newFileBtn").onclick = async ()=>{
   openFile(name.trim());
   toast("File created", "ok");
 };
+$("#newFolderBtn").onclick = async ()=>{
+  const name = prompt("New folder name (e.g. css, src/components):");
+  if(!name || !name.trim()) return;
+  const r = await fetch("/api/project/mkdir",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({path:name.trim()})});
+  if(!r.ok){ toast("Could not create folder"); return; }
+  await loadFiles();
+  toast("Folder created", "ok");
+};
+async function renameFile(path){
+  const next = prompt("Rename / move to (new path):", path);
+  if(next===null) return;
+  const dst = next.trim();
+  if(!dst || dst===path) return;
+  const r = await fetch("/api/project/rename",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({src:path, dst})});
+  const data = await r.json().catch(()=>({}));
+  if(!r.ok){ toast(data.error||"Rename failed"); return; }
+  // Re-open under the new name if it was open.
+  const wasOpen = tabs.has(path);
+  if(wasOpen) closeTab(path, true);
+  await loadFiles();
+  if(wasOpen) openFile(dst);
+  reloadPreview();
+  toast("Renamed", "ok");
+}
 async function deleteFile(path){
   if(!confirm(`Delete ${path}? This cannot be undone.`)) return;
   const r = await fetch("/api/project/delete",{method:"POST",headers:{"Content-Type":"application/json"},
@@ -295,6 +332,9 @@ async function openFile(path){
 async function saveCurrent(){
   if(!activePath){ toast("No file open"); return; }
   const t = tabs.get(activePath); if(!t) return;
+  if(settings.formatOnSave && monacoReady && window.__editor && t.model){
+    try{ await window.__editor.getAction("editor.action.formatDocument")?.run(); }catch(e){}
+  }
   const content = (monacoReady && t.model) ? t.model.getValue()
                 : (fallbackEl ? fallbackEl.value : (t.content||""));
   t.content = content;
@@ -343,15 +383,29 @@ function defineThemes(){
     },
   });
 }
+function editorOptions(){
+  return {
+    fontSize: settings.fontSize,
+    fontFamily: settings.fontFamily,
+    lineHeight: Math.round(settings.fontSize * settings.lineHeight),
+    fontLigatures: settings.ligatures,
+    tabSize: settings.tabSize,
+    wordWrap: settings.wordWrap ? "on" : "off",
+    minimap: { enabled: settings.minimap },
+    lineNumbers: settings.lineNumbers,
+    renderWhitespace: settings.whitespace,
+    cursorStyle: settings.cursorStyle,
+    cursorBlinking: settings.cursorBlink,
+    smoothScrolling: settings.smooth,
+    stickyScroll: { enabled: settings.sticky },
+    bracketPairColorization: { enabled: settings.bracketColors },
+    guides: { indentation: settings.indentGuides, bracketPairs: settings.bracketColors },
+  };
+}
 function applyEditorSettings(){
   if(!window.__editor) return;
   window.monaco.editor.setTheme(settings.editorTheme);
-  window.__editor.updateOptions({
-    fontSize: settings.fontSize,
-    fontFamily: settings.fontFamily,
-    wordWrap: settings.wordWrap ? "on" : "off",
-    minimap: { enabled: settings.minimap },
-  });
+  window.__editor.updateOptions(editorOptions());
 }
 function initMonaco(){
   require.config({ paths: { vs: MONACO_BASE + "/vs" } });
@@ -370,21 +424,13 @@ function initMonaco(){
   require(["vs/editor/editor.main"], function(){
     if(settled) return; settled = true; clearTimeout(watchdog);
     defineThemes();
-    window.__editor = window.monaco.editor.create($("#editorHost"), {
+    window.__editor = window.monaco.editor.create($("#editorHost"), Object.assign({
       model: null,
       theme: settings.editorTheme,
-      fontSize: settings.fontSize,
-      fontFamily: settings.fontFamily,
-      wordWrap: settings.wordWrap ? "on" : "off",
-      minimap: { enabled: settings.minimap },
       automaticLayout: true,
       scrollBeyondLastLine: false,
-      smoothScrolling: true,
-      cursorBlinking: "smooth",
-      tabSize: 2,
-      renderWhitespace: "selection",
       padding: { top: 12 },
-    });
+    }, editorOptions()));
     // Ctrl/Cmd+S to save
     window.__editor.addCommand(window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyS, saveCurrent);
     window.__editor.onDidChangeCursorPosition(e=>{
@@ -419,22 +465,81 @@ function enableFallback(msg){
 }
 
 /* ===================== Settings UI ===================== */
+function hexToRgb(hex){
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex||"");
+  return m ? [parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)] : [124,108,255];
+}
+function lighten(hex, amt){
+  const [r,g,b] = hexToRgb(hex);
+  const f = v => Math.round(v + (255-v)*amt);
+  return `#${[f(r),f(g),f(b)].map(v=>v.toString(16).padStart(2,"0")).join("")}`;
+}
+function applyAccent(){
+  const a = settings.accent || "#7c6cff";
+  const a2 = lighten(a, 0.28);
+  const [r,g,b] = hexToRgb(a);
+  const root = document.documentElement.style;
+  root.setProperty("--accent", a);
+  root.setProperty("--accent-2", a2);
+  root.setProperty("--accent-grad", `linear-gradient(135deg, ${a}, ${a2})`);
+  root.setProperty("--accent-rgb", `${r},${g},${b}`);
+  $$("#accentSwatches .swatch[data-accent]").forEach(s=>{
+    s.classList.toggle("on", (s.dataset.accent||"").toLowerCase()===a.toLowerCase());
+  });
+}
+const SWITCHES = {
+  setWrap:"wordWrap", setMinimap:"minimap", setLigatures:"ligatures",
+  setSticky:"sticky", setSmooth:"smooth", setBracket:"bracketColors",
+  setGuides:"indentGuides", setFormat:"formatOnSave",
+};
 function syncSettingsUI(){
-  $("#setEditorTheme").value = settings.editorTheme;
   $("#setAppTheme").value = settings.appTheme;
+  $("#setEditorTheme").value = settings.editorTheme;
   $("#setFontFamily").value = settings.fontFamily;
   $("#setFontSize").value = settings.fontSize;
   $("#fontSizeVal").textContent = settings.fontSize + "px";
-  $("#setWrap").classList.toggle("on", settings.wordWrap);
-  $("#setMinimap").classList.toggle("on", settings.minimap);
+  $("#setLineHeight").value = Math.round(settings.lineHeight*10);
+  $("#lineHeightVal").textContent = settings.lineHeight.toFixed(1);
+  $("#setTabSize").value = settings.tabSize;
+  $("#tabSizeVal").textContent = settings.tabSize;
+  $("#setCursorStyle").value = settings.cursorStyle;
+  $("#setCursorBlink").value = settings.cursorBlink;
+  $("#setLineNumbers").value = settings.lineNumbers;
+  $("#setWhitespace").value = settings.whitespace;
+  $("#setTermFont").value = settings.termFontSize;
+  $("#termFontVal").textContent = settings.termFontSize + "px";
+  $("#setTermCursor").value = settings.termCursor;
+  $("#setAccentCustom").value = settings.accent;
+  for(const [id,key] of Object.entries(SWITCHES)){ $("#"+id).classList.toggle("on", !!settings[key]); }
+  applyAccent();
 }
 function applyAppTheme(){ $("#app").setAttribute("data-theme", settings.appTheme); }
-$("#setEditorTheme").onchange = e=>{ settings.editorTheme=e.target.value; saveSettings(); applyEditorSettings(); };
+
 $("#setAppTheme").onchange = e=>{ settings.appTheme=e.target.value; saveSettings(); applyAppTheme(); };
+$("#setEditorTheme").onchange = e=>{ settings.editorTheme=e.target.value; saveSettings(); applyEditorSettings(); };
 $("#setFontFamily").onchange = e=>{ settings.fontFamily=e.target.value; saveSettings(); applyEditorSettings(); };
 $("#setFontSize").oninput = e=>{ settings.fontSize=+e.target.value; $("#fontSizeVal").textContent=settings.fontSize+"px"; saveSettings(); applyEditorSettings(); };
-$("#setWrap").onclick = ()=>{ settings.wordWrap=!settings.wordWrap; $("#setWrap").classList.toggle("on",settings.wordWrap); saveSettings(); applyEditorSettings(); };
-$("#setMinimap").onclick = ()=>{ settings.minimap=!settings.minimap; $("#setMinimap").classList.toggle("on",settings.minimap); saveSettings(); applyEditorSettings(); };
+$("#setLineHeight").oninput = e=>{ settings.lineHeight=(+e.target.value)/10; $("#lineHeightVal").textContent=settings.lineHeight.toFixed(1); saveSettings(); applyEditorSettings(); };
+$("#setTabSize").oninput = e=>{ settings.tabSize=+e.target.value; $("#tabSizeVal").textContent=settings.tabSize; saveSettings(); applyEditorSettings(); };
+$("#setCursorStyle").onchange = e=>{ settings.cursorStyle=e.target.value; saveSettings(); applyEditorSettings(); };
+$("#setCursorBlink").onchange = e=>{ settings.cursorBlink=e.target.value; saveSettings(); applyEditorSettings(); };
+$("#setLineNumbers").onchange = e=>{ settings.lineNumbers=e.target.value; saveSettings(); applyEditorSettings(); };
+$("#setWhitespace").onchange = e=>{ settings.whitespace=e.target.value; saveSettings(); applyEditorSettings(); };
+$("#setTermFont").oninput = e=>{ settings.termFontSize=+e.target.value; $("#termFontVal").textContent=settings.termFontSize+"px"; saveSettings(); applyTermSettings(); };
+$("#setTermCursor").onchange = e=>{ settings.termCursor=e.target.value; saveSettings(); applyTermSettings(); };
+for(const [id,key] of Object.entries(SWITCHES)){
+  $("#"+id).onclick = ()=>{ settings[key]=!settings[key]; $("#"+id).classList.toggle("on",settings[key]); saveSettings(); applyEditorSettings(); };
+}
+$$("#accentSwatches .swatch[data-accent]").forEach(s=>{
+  s.onclick = ()=>{ settings.accent=s.dataset.accent; $("#setAccentCustom").value=s.dataset.accent; saveSettings(); applyAccent(); };
+});
+$("#setAccentCustom").oninput = e=>{ settings.accent=e.target.value; saveSettings(); applyAccent(); };
+$("#resetSettings").onclick = ()=>{
+  if(!confirm("Reset every setting back to its default?")) return;
+  settings = Object.assign({}, defaultSettings);
+  saveSettings(); syncSettingsUI(); applyAppTheme(); applyEditorSettings(); applyTermSettings();
+  toast("Settings reset", "ok");
+};
 
 /* ===================== ZIP / New ===================== */
 function updateZipBtn(){
@@ -471,10 +576,136 @@ $("#newBtn").onclick = async ()=>{
   window.addEventListener("mouseup", ()=>{ if(dragging){ dragging=false; sp.classList.remove("dragging"); document.body.style.userSelect=""; if(window.__editor)window.__editor.layout(); } });
 })();
 
+/* ===================== Terminal ===================== */
+let term = null, termFit = null, termSocket = null, termOpen = false;
+let termInfo = { enabled:true, needs_password:false };
+let termConnected = false;
+
+function setTermStatus(text, cls){
+  const el = $("#termStatus"); if(!el) return;
+  el.textContent = text;
+  el.className = "term-status" + (cls?(" "+cls):"");
+}
+function applyTermSettings(){
+  if(!term) return;
+  try{
+    term.options.fontSize = settings.termFontSize;
+    term.options.cursorStyle = settings.termCursor;
+    if(termFit) termFit.fit();
+    sendResize();
+  }catch(e){}
+}
+function termTheme(){
+  const css = getComputedStyle(document.documentElement);
+  const dark = settings.appTheme === "dark";
+  return {
+    background: dark ? "#161619" : "#ffffff",
+    foreground: dark ? "#dcdce0" : "#1f2024",
+    cursor: (settings.accent || "#7c6cff"),
+    selectionBackground: "rgba(124,108,255,.30)",
+  };
+}
+async function fetchTermStatus(){
+  try{
+    const r = await fetch("/api/terminal/status");
+    termInfo = await r.json();
+  }catch(e){ termInfo = { enabled:true, needs_password:false }; }
+  $("#termToggleAct").classList.toggle("disabled", !termInfo.enabled);
+}
+function ensureTerm(){
+  if(term) return true;
+  if(typeof window.Terminal === "undefined"){ toast("Terminal failed to load (no internet?)"); return false; }
+  term = new window.Terminal({
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: settings.termFontSize,
+    cursorStyle: settings.termCursor,
+    cursorBlink: true,
+    convertEol: true,
+    theme: termTheme(),
+  });
+  try{
+    termFit = new window.FitAddon.FitAddon();
+    term.loadAddon(termFit);
+  }catch(e){ termFit = null; }
+  term.open($("#termHost"));
+  term.onData(d=>{ if(termSocket && termSocket.readyState===1) termSocket.send(JSON.stringify({input:d})); });
+  try{ if(termFit) termFit.fit(); }catch(e){}
+  return true;
+}
+function sendResize(){
+  if(term && termSocket && termSocket.readyState===1){
+    termSocket.send(JSON.stringify({resize:{cols:term.cols, rows:term.rows}}));
+  }
+}
+function connectTerm(){
+  if(!ensureTerm()) return;
+  if(termSocket){ try{ termSocket.close(); }catch(e){} termSocket=null; }
+  let pw = "";
+  if(termInfo.needs_password){
+    pw = prompt("Terminal password:") || "";
+  }
+  setTermStatus("connecting…");
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  termSocket = new WebSocket(`${proto}://${location.host}/ws/terminal`);
+  termSocket.onopen = ()=>{
+    termConnected = true;
+    setTermStatus("connected", "ok");
+    termSocket.send(JSON.stringify({auth:pw}));
+    setTimeout(()=>{ try{ if(termFit) termFit.fit(); sendResize(); }catch(e){} }, 60);
+  };
+  termSocket.onmessage = ev=>{ if(term) term.write(ev.data); };
+  termSocket.onclose = ()=>{
+    termConnected = false;
+    setTermStatus("disconnected");
+    if(term) term.write("\r\n\x1b[2m[session ended — press the restart icon to start again]\x1b[0m\r\n");
+  };
+  termSocket.onerror = ()=>{ setTermStatus("error", "err"); };
+}
+function openTerminal(){
+  $("#terminalPanel").classList.add("open");
+  $("#termToggleAct").classList.add("active");
+  termOpen = true;
+  if(window.__editor) window.__editor.layout();
+  if(!termConnected) connectTerm();
+  setTimeout(()=>{ try{ if(termFit) termFit.fit(); sendResize(); term && term.focus(); }catch(e){} }, 70);
+}
+function closeTerminal(){
+  $("#terminalPanel").classList.remove("open");
+  $("#termToggleAct").classList.remove("active");
+  termOpen = false;
+  if(window.__editor) window.__editor.layout();
+}
+function toggleTerminal(){
+  if(termInfo.enabled===false){ toast("Terminal is turned off on the live site."); return; }
+  termOpen ? closeTerminal() : openTerminal();
+}
+$("#termToggleAct").onclick = toggleTerminal;
+$("#termClose").onclick = closeTerminal;
+$("#termRestart").onclick = ()=>{ if(term) term.reset(); connectTerm(); };
+window.addEventListener("resize", ()=>{ if(termOpen && termFit){ try{ termFit.fit(); sendResize(); }catch(e){} } });
+
+/* Drag-to-resize the terminal panel height */
+(function(){
+  const handle = $("#termResize"), panel = $("#terminalPanel");
+  let dragging=false;
+  handle.addEventListener("mousedown", ()=>{ dragging=true; document.body.style.userSelect="none"; });
+  window.addEventListener("mousemove", e=>{
+    if(!dragging) return;
+    const region = panel.parentElement.getBoundingClientRect();
+    let h = region.bottom - e.clientY;
+    h = Math.max(100, Math.min(region.height-120, h));
+    panel.style.height = h+"px";
+    if(window.__editor) window.__editor.layout();
+    if(termFit){ try{ termFit.fit(); sendResize(); }catch(e){} }
+  });
+  window.addEventListener("mouseup", ()=>{ if(dragging){ dragging=false; document.body.style.userSelect=""; } });
+})();
+
 /* ===================== Global shortcuts ===================== */
 window.addEventListener("keydown", e=>{
   const mod = e.ctrlKey || e.metaKey;
-  if(mod && e.key.toLowerCase()==="s"){ e.preventDefault(); if(activePath) saveCurrent(); }
+  if(e.ctrlKey && e.key==="`"){ e.preventDefault(); toggleTerminal(); }
+  else if(mod && e.key.toLowerCase()==="s"){ e.preventDefault(); if(activePath) saveCurrent(); }
   else if(mod && e.key.toLowerCase()==="b"){ e.preventDefault(); $("#sidebar").classList.toggle("collapsed"); if(window.__editor)window.__editor.layout(); }
   else if(mod && e.shiftKey && e.key.toLowerCase()==="e"){ e.preventDefault(); setView("explorer"); }
 });
@@ -524,4 +755,5 @@ loadFiles();
 setView("explorer");
 loadStatus();
 setInterval(loadStatus, 15000);
+fetchTermStatus();
 autosize();

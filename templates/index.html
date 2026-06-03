@@ -248,9 +248,10 @@
             </div>
 
             <div class="set-hint">
-              Real editor shortcuts work here: <b>Ctrl/Cmd+S</b> save · <b>Ctrl+F</b> find ·
-              <b>F1</b> command palette · <b>Alt+Click</b> multi-cursor · <b>Ctrl+/</b> comment ·
-              <b>Ctrl+B</b> toggle sidebar · <b>Ctrl+`</b> terminal.
+              Works everywhere: <b>F1</b> command palette · <b>Ctrl+P</b> quick-open files ·
+              <b>Ctrl+S</b> save · <b>Ctrl+F</b> find · <b>Alt+Click</b> multi-cursor ·
+              <b>Ctrl+/</b> comment · <b>Ctrl+B</b> sidebar · <b>Ctrl+`</b> terminal.
+              <button class="set-link" id="openShortcutsLink">See all keyboard shortcuts →</button>
             </div>
           </div>
         </div>
@@ -307,12 +308,41 @@
   <!-- ===================== Status bar ===================== -->
   <footer class="statusbar">
     <div class="sb-item"><span class="sb-accent">●</span> <span id="sbModel">…</span></div>
+    <button class="sb-btn" id="sbCmd" title="Command Palette (F1)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+      Commands
+    </button>
     <div class="sb-spacer"></div>
     <div class="sb-item" id="sbSaveWrap"><span id="sbSave"></span></div>
     <div class="sb-item"><span id="sbLang">—</span></div>
     <div class="sb-item"><span id="sbPos">Ln 1, Col 1</span></div>
   </footer>
 
+</div>
+
+<!-- Command palette / quick open -->
+<div class="cmdk" id="cmdk" hidden>
+  <div class="cmdk-box" role="dialog" aria-label="Command palette">
+    <div class="cmdk-input-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="cmdkInput" class="cmdk-input" type="text" spellcheck="false" autocomplete="off" placeholder="Search files by name, or type &gt; for commands…">
+    </div>
+    <div class="cmdk-list" id="cmdkList"></div>
+    <div class="cmdk-foot">
+      <span><kbd>↑</kbd> <kbd>↓</kbd> navigate</span>
+      <span><kbd>↵</kbd> run</span>
+      <span><kbd>esc</kbd> close</span>
+      <span class="cmdk-tip"><kbd>&gt;</kbd> commands · plain text = files</span>
+    </div>
+  </div>
+</div>
+
+<!-- Keyboard shortcuts reference -->
+<div class="cmdk" id="shortcuts" hidden>
+  <div class="cmdk-box sc-box" role="dialog" aria-label="Keyboard shortcuts">
+    <div class="sc-head">Keyboard Shortcuts <button class="sc-close" id="scClose" title="Close">✕</button></div>
+    <div class="sc-list" id="scList"></div>
+  </div>
 </div>
 
 <div class="toast-wrap" id="toasts"></div>

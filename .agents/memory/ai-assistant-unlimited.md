@@ -83,6 +83,15 @@ gunicorn has no Ollama, and the workspace caps at 8GB. A Reserved VM (32GB/8CPU)
 - Chat transcript + settings persist in localStorage; New button clears chat. ZIP download
   is double-guarded: backend `/api/project/download` returns 400 when `builder.is_empty()`,
   frontend disables the button until files exist.
+- **Command Palette / Quick Open / shortcuts** live entirely in `app.js` (no backend). One
+  overlay (`#cmdk`) does both: input starting with `>` = command mode, else file mode (file
+  list comes from `fileCache`, refreshed in `loadFiles()`). App-wide keys use a single
+  **capture-phase** `window` keydown so they beat Monaco; `take()` = preventDefault +
+  stopPropagation. **Key rule:** when an overlay is open, that SAME global handler owns
+  navigation keys (don't also bind keydown on the input — that double-fires nav). Editor-
+  only shortcuts (find/replace/comment/format) are left to Monaco when it's focused; the
+  palette reaches them via `editor.getAction(...)`. F1 is hijacked globally for OUR palette,
+  so don't advertise "F1 in editor" for Monaco's command UI.
 
 ## Pushing to GitHub (julianomangli/ai-assistant-unlimited, branch main)
 **Why:** No local `git push` from the sandbox; use the GitHub Git Data API instead.

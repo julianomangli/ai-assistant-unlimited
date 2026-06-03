@@ -9,6 +9,7 @@ let mode = "chat";
 let model = null;
 let busy = false;
 let hasFiles = false;
+let fileCache = [];   // current project file paths, for Quick Open
 
 /* ===================== Persistence ===================== */
 const STORE = {
@@ -175,6 +176,7 @@ async function loadFiles(){
   const r = await fetch("/api/project/files");
   const data = await r.json();
   hasFiles = data.files.length > 0;
+  fileCache = data.files.slice();
   updateZipBtn();
   const list = $("#fileList"); list.innerHTML="";
   if(!data.files.length){
@@ -701,14 +703,245 @@ window.addEventListener("resize", ()=>{ if(termOpen && termFit){ try{ termFit.fi
   window.addEventListener("mouseup", ()=>{ if(dragging){ dragging=false; document.body.style.userSelect=""; } });
 })();
 
+/* ===================== Command palette + Quick Open ===================== */
+function editorReady(){ return monacoReady && !!window.__editor && !!activePath; }
+function runEditorAction(id){
+  if(monacoReady && window.__editor){
+    window.__editor.focus();
+    const a = window.__editor.getAction(id);
+    if(a){ a.run(); return true; }
+  }
+  toast("Open a file in the editor first.");
+  return false;
+}
+function toggleWordWrap(){
+  settings.wordWrap = !settings.wordWrap; saveSettings(); applyEditorSettings(); syncSettingsUI();
+  toast("Word wrap " + (settings.wordWrap?"on":"off"), "ok");
+}
+function setAppThemeCmd(v){ settings.appTheme=v; saveSettings(); applyAppTheme(); if(term){ try{ term.options.theme=termTheme(); }catch(e){} } syncSettingsUI(); }
+function setEditorThemeCmd(v){ settings.editorTheme=v; saveSettings(); applyEditorSettings(); syncSettingsUI(); }
+function toggleSidebar(){ $("#sidebar").classList.toggle("collapsed"); if(window.__editor) window.__editor.layout(); }
+
+function allCommands(){
+  return [
+    {t:"New File", h:"Ctrl+Alt+N", kw:"create new file", run:()=>$("#newFileBtn").click()},
+    {t:"New Folder", h:"", kw:"create new folder directory", run:()=>$("#newFolderBtn").click()},
+    {t:"Save", h:"Ctrl+S", kw:"save write file", when:()=>!!activePath, run:saveCurrent},
+    {t:"Save with Formatting", h:"", kw:"save format beautify", when:editorReady, run:async()=>{ await runEditorAction("editor.action.formatDocument"); saveCurrent(); }},
+    {t:"Close Tab", h:"Ctrl+W", kw:"close tab file", when:()=>!!activePath, run:()=>activePath&&closeTab(activePath)},
+    {t:"Close All Tabs", h:"", kw:"close all tabs", when:()=>tabs.size>0, run:()=>Array.from(tabs.keys()).forEach(p=>closeTab(p,true))},
+    {t:"Download Project as ZIP", h:"", kw:"download zip export save", run:()=>$("#downloadBtn").click()},
+    {t:"New Project", h:"", kw:"new project reset clear start", run:()=>$("#newBtn").click()},
+    {t:"Refresh Files", h:"", kw:"refresh reload files explorer", run:loadFiles},
+
+    {t:"View: Explorer", h:"Ctrl+Shift+E", kw:"view explorer files sidebar", run:()=>setView("explorer")},
+    {t:"View: Live Preview", h:"", kw:"view preview run app", run:()=>setView("preview")},
+    {t:"View: Settings", h:"Ctrl+,", kw:"view settings preferences options", run:()=>setView("settings")},
+    {t:"Toggle Sidebar", h:"Ctrl+B", kw:"toggle sidebar hide show", run:toggleSidebar},
+    {t:"Toggle Terminal", h:"Ctrl+`", kw:"toggle terminal shell console", run:toggleTerminal},
+    {t:"Terminal: Restart", h:"", kw:"terminal restart new shell", run:()=>$("#termRestart").click()},
+    {t:"Terminal: Clear", h:"", kw:"terminal clear cls", run:()=>{ if(term){ try{ term.clear(); }catch(e){} } }},
+    {t:"Preview: Reload", h:"", kw:"preview reload refresh", run:reloadPreview},
+    {t:"Preview: Open in New Tab", h:"", kw:"preview open browser tab", run:()=>window.open("/preview/","_blank")},
+
+    {t:"Format Document", h:"Shift+Alt+F", kw:"format beautify document indent", when:editorReady, run:()=>runEditorAction("editor.action.formatDocument")},
+    {t:"Toggle Line Comment", h:"Ctrl+/", kw:"comment uncomment toggle", when:editorReady, run:()=>runEditorAction("editor.action.commentLine")},
+    {t:"Find", h:"Ctrl+F", kw:"find search", when:editorReady, run:()=>runEditorAction("actions.find")},
+    {t:"Replace", h:"Ctrl+H", kw:"replace find substitute", when:editorReady, run:()=>runEditorAction("editor.action.startFindReplaceAction")},
+    {t:"Go to Line/Column", h:"Ctrl+G", kw:"go to line column number", when:editorReady, run:()=>runEditorAction("editor.action.gotoLine")},
+    {t:"Go to Symbol", h:"Ctrl+Shift+O", kw:"go to symbol outline function", when:editorReady, run:()=>runEditorAction("editor.action.quickOutline")},
+    {t:"Fold All", h:"", kw:"fold collapse all", when:editorReady, run:()=>runEditorAction("editor.foldAll")},
+    {t:"Unfold All", h:"", kw:"unfold expand all", when:editorReady, run:()=>runEditorAction("editor.unfoldAll")},
+    {t:"Toggle Word Wrap", h:"Alt+Z", kw:"word wrap toggle", run:toggleWordWrap},
+    {t:"All Editor Commands\u2026", h:"", kw:"all editor commands palette monaco more", when:editorReady, run:()=>runEditorAction("editor.action.quickCommand")},
+
+    {t:"Switch to Chat Mode", h:"", kw:"chat mode ask", run:()=>setMode("chat")},
+    {t:"Switch to Build Mode", h:"", kw:"build mode app generate", run:()=>setMode("build")},
+
+    {t:"Color Theme: Dark", h:"", kw:"color theme dark appearance", run:()=>setAppThemeCmd("dark")},
+    {t:"Color Theme: Light", h:"", kw:"color theme light appearance", run:()=>setAppThemeCmd("light")},
+    {t:"Editor Theme: Midnight", h:"", kw:"editor color theme midnight", run:()=>setEditorThemeCmd("aiu-midnight")},
+    {t:"Editor Theme: Dark+ (VS Code)", h:"", kw:"editor color theme dark vscode", run:()=>setEditorThemeCmd("vs-dark")},
+    {t:"Editor Theme: Light+ (VS Code)", h:"", kw:"editor color theme light vscode", run:()=>setEditorThemeCmd("vs")},
+    {t:"Editor Theme: High Contrast", h:"", kw:"editor color theme high contrast", run:()=>setEditorThemeCmd("hc-black")},
+
+    {t:"Help: Keyboard Shortcuts", h:"", kw:"help keyboard shortcuts keys reference", run:openShortcuts},
+  ];
+}
+
+let pk = { open:false, mode:"command", items:[], sel:0 };
+function fuzzy(q, text){
+  q=q.toLowerCase(); text=text.toLowerCase();
+  if(!q) return 0;
+  let ti=0, score=0, run=0;
+  for(let qi=0; qi<q.length; qi++){
+    const c=q[qi]; let found=-1;
+    for(let j=ti;j<text.length;j++){ if(text[j]===c){ found=j; break; } }
+    if(found<0) return -1;
+    run = (found===ti) ? run+2 : 0;
+    score += 1 + run - (found-ti)*0.04;
+    ti = found+1;
+  }
+  return score;
+}
+function fmtKeys(h){ return `<kbd>${escapeHtml(h)}</kbd>`; }
+function openPalette(prefill=""){
+  pk.open=true; pk.sel=0;
+  $("#cmdk").hidden=false;
+  const inp=$("#cmdkInput");
+  inp.value=prefill;
+  updatePalette();
+  setTimeout(()=>{ inp.focus(); const n=inp.value.length; try{ inp.setSelectionRange(n,n); }catch(e){} }, 0);
+}
+function closePalette(){ pk.open=false; $("#cmdk").hidden=true; }
+function updatePalette(){
+  const raw=$("#cmdkInput").value;
+  const isCmd = raw.startsWith(">");
+  pk.mode = isCmd ? "command" : "file";
+  const q = (isCmd ? raw.slice(1) : raw).trim();
+  let items=[];
+  if(pk.mode==="command"){
+    items = allCommands().filter(c=>!c.when || c.when())
+      .map(c=>({c, s: q ? fuzzy(q, c.t+" "+(c.kw||"")) : 0}))
+      .filter(x=>x.s>=0).sort((a,b)=>b.s-a.s)
+      .map(x=>({type:"cmd", cmd:x.c, label:x.c.t, hint:x.c.h}));
+  } else {
+    items = fileCache
+      .map(f=>({f, s: q ? fuzzy(q, f) : 0}))
+      .filter(x=>x.s>=0).sort((a,b)=>b.s-a.s)
+      .map(x=>({type:"file", path:x.f, label:x.f}));
+  }
+  pk.items=items;
+  if(pk.sel>=items.length) pk.sel=Math.max(0, items.length-1);
+  renderPalette();
+}
+function renderPalette(){
+  const list=$("#cmdkList"); list.innerHTML="";
+  if(!pk.items.length){
+    const e=document.createElement("div"); e.className="cmdk-empty";
+    e.textContent = pk.mode==="file"
+      ? (fileCache.length ? "No matching files" : "No files yet — build an app or create one.")
+      : "No matching commands";
+    list.appendChild(e); return;
+  }
+  const fileIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`;
+  const cmdIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>`;
+  pk.items.forEach((it,i)=>{
+    const row=document.createElement("div");
+    row.className="cmdk-item"+(i===pk.sel?" sel":"");
+    const ic=document.createElement("span"); ic.className="cmdk-ic"; ic.innerHTML = it.type==="file"?fileIcon:cmdIcon;
+    const lab=document.createElement("span"); lab.className="cmdk-lab"; lab.textContent=it.label;
+    row.appendChild(ic); row.appendChild(lab);
+    if(it.hint){ const k=document.createElement("span"); k.className="cmdk-key"; k.innerHTML=fmtKeys(it.hint); row.appendChild(k); }
+    row.addEventListener("mousemove", ()=>{ if(pk.sel!==i){ pk.sel=i; markSel(); } });
+    row.addEventListener("click", ()=>runPaletteItem(i));
+    list.appendChild(row);
+  });
+  markSel();
+}
+function markSel(){
+  const rows=$$("#cmdkList .cmdk-item");
+  rows.forEach((el,i)=>el.classList.toggle("sel", i===pk.sel));
+  if(rows[pk.sel]) rows[pk.sel].scrollIntoView({block:"nearest"});
+}
+function runPaletteItem(i){
+  const it=pk.items[i]; if(!it) return;
+  closePalette();
+  if(it.type==="file"){ openFile(it.path); }
+  else { try{ it.cmd.run(); }catch(e){ toast("Could not run that command"); } }
+}
+$("#cmdkInput").addEventListener("input", updatePalette);
+// Navigation keys are handled by the global capture handler below so they work
+// even if focus leaves the input (e.g. after clicking the list).
+$("#cmdk").addEventListener("mousedown", e=>{ if(e.target.id==="cmdk") closePalette(); });
+$("#sbCmd").onclick = ()=>openPalette(">");
+
+/* ===================== Keyboard shortcuts reference ===================== */
+const SHORTCUTS = [
+  ["General", [
+    ["Command Palette","F1 / Ctrl+Shift+P"],
+    ["Quick Open file","Ctrl+P"],
+    ["Open Settings","Ctrl+,"],
+    ["All Editor Commands","via Command Palette"],
+  ]],
+  ["View", [
+    ["Toggle Sidebar","Ctrl+B"],
+    ["Show Explorer","Ctrl+Shift+E"],
+    ["Toggle Terminal","Ctrl+`"],
+  ]],
+  ["Files", [
+    ["Save","Ctrl+S"],
+    ["New File","Ctrl+Alt+N"],
+    ["Close Tab","Ctrl+W"],
+  ]],
+  ["Editing", [
+    ["Find","Ctrl+F"],
+    ["Replace","Ctrl+H"],
+    ["Go to Line","Ctrl+G"],
+    ["Go to Symbol","Ctrl+Shift+O"],
+    ["Toggle Comment","Ctrl+/"],
+    ["Format Document","Shift+Alt+F"],
+    ["Toggle Word Wrap","Alt+Z"],
+  ]],
+  ["Multi-cursor & selection", [
+    ["Add cursor","Alt+Click"],
+    ["Add cursor above/below","Ctrl+Alt+\u2191 / \u2193"],
+    ["Select next match","Ctrl+D"],
+    ["Select all matches","Ctrl+Shift+L"],
+    ["Move line up/down","Alt+\u2191 / Alt+\u2193"],
+    ["Copy line up/down","Shift+Alt+\u2191 / \u2193"],
+  ]],
+];
+function openShortcuts(){
+  const wrap=$("#scList"); wrap.innerHTML="";
+  SHORTCUTS.forEach(([cat,rows])=>{
+    const block=document.createElement("div"); block.className="sc-block";
+    const h=document.createElement("div"); h.className="sc-cat"; h.textContent=cat; block.appendChild(h);
+    rows.forEach(([name,key])=>{
+      const r=document.createElement("div"); r.className="sc-row";
+      const n=document.createElement("span"); n.className="sc-name"; n.textContent=name;
+      const k=document.createElement("span"); k.className="sc-key"; k.innerHTML=fmtKeys(key);
+      r.appendChild(n); r.appendChild(k); block.appendChild(r);
+    });
+    wrap.appendChild(block);
+  });
+  $("#shortcuts").hidden=false;
+}
+function closeShortcuts(){ $("#shortcuts").hidden=true; }
+$("#scClose").onclick = closeShortcuts;
+$("#shortcuts").addEventListener("mousedown", e=>{ if(e.target.id==="shortcuts") closeShortcuts(); });
+const _sl = $("#openShortcutsLink"); if(_sl) _sl.onclick = openShortcuts;
+
 /* ===================== Global shortcuts ===================== */
 window.addEventListener("keydown", e=>{
+  // Palette open: manage navigation regardless of which element holds focus.
+  if(pk.open){
+    if(e.key==="ArrowDown"){ e.preventDefault(); pk.sel=Math.min(pk.items.length-1, pk.sel+1); markSel(); }
+    else if(e.key==="ArrowUp"){ e.preventDefault(); pk.sel=Math.max(0, pk.sel-1); markSel(); }
+    else if(e.key==="Enter"){ e.preventDefault(); runPaletteItem(pk.sel); }
+    else if(e.key==="Escape"){ e.preventDefault(); closePalette(); }
+    else if(e.key==="Tab"){ e.preventDefault(); const n=Math.max(1,pk.items.length); pk.sel=(pk.sel+(e.shiftKey?-1:1)+n)%n; markSel(); }
+    return;
+  }
+  // Shortcuts modal open: trap keys so they don't leak to the editor; Esc closes.
+  if(!$("#shortcuts").hidden){
+    e.stopPropagation();
+    if(e.key==="Escape"){ e.preventDefault(); closeShortcuts(); }
+    return;
+  }
   const mod = e.ctrlKey || e.metaKey;
-  if(e.ctrlKey && e.key==="`"){ e.preventDefault(); toggleTerminal(); }
-  else if(mod && e.key.toLowerCase()==="s"){ e.preventDefault(); if(activePath) saveCurrent(); }
-  else if(mod && e.key.toLowerCase()==="b"){ e.preventDefault(); $("#sidebar").classList.toggle("collapsed"); if(window.__editor)window.__editor.layout(); }
-  else if(mod && e.shiftKey && e.key.toLowerCase()==="e"){ e.preventDefault(); setView("explorer"); }
-});
+  const k = (e.key||"").toLowerCase();
+  const take = ()=>{ e.preventDefault(); e.stopPropagation(); };
+  if(e.key==="F1" || (mod && e.shiftKey && k==="p")){ take(); openPalette(">"); return; }   // Command palette
+  if(mod && !e.shiftKey && k==="p"){ take(); openPalette(""); return; }                       // Quick Open
+  if(mod && !e.shiftKey && k==="s"){ take(); if(activePath) saveCurrent(); return; }           // Save
+  if(mod && k==="b"){ take(); toggleSidebar(); return; }                                       // Toggle sidebar
+  if(mod && e.shiftKey && k==="e"){ take(); setView("explorer"); return; }                     // Explorer
+  if(mod && e.key===","){ take(); setView("settings"); return; }                               // Settings
+  if(mod && e.altKey && k==="n"){ take(); $("#newFileBtn").click(); return; }                  // New file
+  if(e.ctrlKey && e.key==="`"){ take(); toggleTerminal(); return; }                            // Terminal
+  if(e.altKey && !mod && k==="z"){ take(); toggleWordWrap(); return; }                         // Word wrap
+}, true);
 
 /* ===================== Chips ===================== */
 $$(".chip").forEach(c=>{

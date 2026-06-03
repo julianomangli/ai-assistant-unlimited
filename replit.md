@@ -111,6 +111,16 @@ Ask the assistant (me) any time to install or switch models for you.
   delete files, create folders), syntax highlighting, a status bar, Ctrl+S to save, a
   built-in terminal (Ctrl+`), and a deep settings panel. Chats are remembered in your
   browser between visits.
+- **Command Palette & shortcuts (VS Code-style):** press **F1** (or **Ctrl+Shift+P**) for
+  the Command Palette — fuzzy-search every action (files, views, terminal, themes, editor
+  commands). Press **Ctrl+P** for **Quick Open** (jump to any file by name). A full
+  keyboard-shortcut layer works app-wide (Ctrl+S save, Ctrl+B sidebar, Ctrl+Shift+E
+  explorer, Ctrl+, settings, Ctrl+Alt+N new file, Ctrl+` terminal, Alt+Z word wrap), plus
+  a **Keyboard Shortcuts** reference (Settings → "See all keyboard shortcuts", or the
+  Help command). Inside the editor, all of Monaco's own shortcuts (find, replace, multi-
+  cursor, comment, format) work too. The "Commands" button in the status bar opens the
+  palette. Global keys use a capture-phase handler so they win over Monaco where intended;
+  when an overlay is open it traps navigation keys (arrows/Enter/Esc) regardless of focus.
 - **Live preview safety:** the preview runs your generated app inside a sandboxed frame
   so its code can't read your chat history or touch your files. Apps that use browser
   storage still work — the server quietly provides an in-memory stand-in.

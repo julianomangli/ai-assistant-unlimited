@@ -30,6 +30,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       ZIP
     </button>
+    <button class="tbtn tbtn-guide" id="guideBtn" title="What can this AI do?">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      Guide
+    </button>
     <button class="tbtn" id="newBtn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
       New
@@ -319,6 +323,229 @@
   </footer>
 
 </div>
+
+<!-- ===================== Guide overlay ===================== -->
+<div class="guide-overlay" id="guideOverlay" hidden>
+  <div class="guide-panel">
+    <div class="guide-header">
+      <div class="guide-title-block">
+        <span class="guide-logo">🤖</span>
+        <div>
+          <div class="guide-title">What can this AI do?</div>
+          <div class="guide-sub">Everything you need to know — no technical knowledge required.</div>
+        </div>
+      </div>
+      <button class="guide-close" id="guideClose" title="Close">✕</button>
+    </div>
+
+    <div class="guide-body">
+
+      <!-- WHAT IS THIS -->
+      <section class="gs">
+        <div class="gs-icon">🧠</div>
+        <div class="gs-content">
+          <h2>What is this app?</h2>
+          <p>This is a <strong>free, completely private AI assistant</strong> that runs entirely on your own machine. Your conversations are never sent to OpenAI, Google, or any cloud service. The AI model lives here — on this server — and nobody else sees what you type.</p>
+          <p>It has two main uses: <strong>Chat</strong> (ask it anything) and <strong>Build</strong> (describe an app and it writes the code live).</p>
+        </div>
+      </section>
+
+      <!-- HONEST WARNINGS -->
+      <section class="gs gs-warn-block">
+        <div class="gs-icon">⚠️</div>
+        <div class="gs-content">
+          <h2>Honest warnings — please read</h2>
+          <div class="warn-grid">
+            <div class="warn-card">
+              <div class="warn-title">It makes mistakes</div>
+              <div class="warn-body">No AI is perfect. It will sometimes write buggy code, give wrong answers, or confidently say something incorrect. <strong>Always review its output</strong> before using it for anything important. Think of it as a very fast, very helpful assistant that occasionally needs correcting.</div>
+            </div>
+            <div class="warn-card">
+              <div class="warn-title">It doesn't remember past chats</div>
+              <div class="warn-body">Every time you press <strong>New</strong>, the conversation starts fresh. The AI has no memory of what you discussed before — not even five minutes ago in a different session. Within one chat it remembers everything; across sessions, nothing.</div>
+            </div>
+            <div class="warn-card">
+              <div class="warn-title">Its knowledge has a cutoff date</div>
+              <div class="warn-body">The AI's built-in knowledge was frozen when the model was trained. It doesn't know about things that happened after that. <strong>Web Search is on by default</strong> to help with current topics, but it's not perfect either — always verify important facts.</div>
+            </div>
+            <div class="warn-card">
+              <div class="warn-title">The local model is small — good, not genius</div>
+              <div class="warn-body">The local model (<strong>qwen2.5-coder:3b</strong>) is optimised for coding and runs fast for free. The published live site uses the larger <strong>7B model</strong> — noticeably smarter. Neither is as powerful as GPT-4 or Claude. Great for drafts and real projects; not infallible.</div>
+            </div>
+            <div class="warn-card">
+              <div class="warn-title">Built apps are web-only</div>
+              <div class="warn-body">The Build mode creates web apps (HTML, CSS, JavaScript). It <strong>cannot</strong> build iOS apps, Android apps, desktop executables, or Unity/Unreal projects. It can write game logic in the browser (Canvas, WebGL), but not native games.</div>
+            </div>
+            <div class="warn-card">
+              <div class="warn-title">It doesn't fix itself</div>
+              <div class="warn-body">If something breaks, it won't automatically detect and repair it. You have to tell it what went wrong — paste the error message into the chat and ask it to fix it. Being specific gets much better results.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CHAT MODE -->
+      <section class="gs">
+        <div class="gs-icon">💬</div>
+        <div class="gs-content">
+          <h2>Chat mode — ask it anything</h2>
+          <p>Switch to <strong>Chat</strong> using the button at the bottom-left. This is a general-purpose AI conversation. Good things to ask:</p>
+          <ul class="guide-list">
+            <li><strong>Explain code</strong> — paste any code and ask "what does this do?"</li>
+            <li><strong>Debug errors</strong> — paste an error message and ask "why is this happening and how do I fix it?"</li>
+            <li><strong>Write code</strong> — "write a Python function that reads a CSV and returns the top 10 rows by sales"</li>
+            <li><strong>Security help</strong> — "explain how SQL injection works and show me a safe query"</li>
+            <li><strong>Game logic</strong> — "explain the A* pathfinding algorithm with pseudocode"</li>
+            <li><strong>Current events</strong> — web search is on, so it can look things up in real time</li>
+            <li><strong>Drafts and writing</strong> — emails, README files, documentation, pitch decks</li>
+          </ul>
+          <div class="guide-tip">💡 <strong>Tip:</strong> The more specific you are, the better the answer. Instead of "write a login", say "write a login form in HTML and CSS with email and password fields, a show/hide password toggle, and client-side validation."</div>
+        </div>
+      </section>
+
+      <!-- BUILD MODE -->
+      <section class="gs">
+        <div class="gs-icon">🔨</div>
+        <div class="gs-content">
+          <h2>Build mode — describe an app, get the code</h2>
+          <p>Switch to <strong>Build</strong> and describe any web app in plain English. The AI writes all the code, it appears live in the Preview tab, and the files show up in the Explorer. You can then edit, run, and download everything.</p>
+          <p><strong>What you can build:</strong></p>
+          <ul class="guide-list">
+            <li>To-do lists, note-taking apps, habit trackers</li>
+            <li>Calculators, converters, timers, clocks</li>
+            <li>Landing pages, portfolios, product pages</li>
+            <li>Dashboards with charts and data tables</li>
+            <li>Form builders, survey tools, quizzes</li>
+            <li>Games — Snake, Tetris, card games, 2D platformers (browser-based)</li>
+            <li>Tools — regex testers, JSON formatters, color pickers, markdown editors</li>
+            <li>Password generators, QR code makers, URL shorteners</li>
+            <li>Admin panels, CRUD interfaces (with mock data)</li>
+            <li>Anything that runs in a web browser</li>
+          </ul>
+          <div class="guide-tip">💡 <strong>Tip:</strong> After the first build, you can keep chatting to improve it. Say things like "add a dark mode", "make the buttons bigger", or "add a search bar". You can iterate as many times as you want.</div>
+          <div class="guide-tip guide-tip-warn">⚠️ <strong>Limitation:</strong> Large, complex apps (e.g. a full e-commerce platform with a real database and payments) will need multiple sessions and careful step-by-step prompting. Break big projects into small pieces.</div>
+        </div>
+      </section>
+
+      <!-- THE EDITOR -->
+      <section class="gs">
+        <div class="gs-icon">✏️</div>
+        <div class="gs-content">
+          <h2>The code editor</h2>
+          <p>The editor on the right is <strong>Monaco</strong> — the exact same engine that powers Visual Studio Code. It's a real, professional code editor.</p>
+          <ul class="guide-list">
+            <li>Syntax highlighting for 50+ languages (HTML, CSS, JS, Python, TypeScript, Rust, Go…)</li>
+            <li>Find &amp; Replace (<kbd>Ctrl+F</kbd> / <kbd>Ctrl+H</kbd>)</li>
+            <li>Multi-cursor editing — hold <kbd>Alt</kbd> and click multiple places</li>
+            <li>Go to any line (<kbd>Ctrl+G</kbd>)</li>
+            <li>Toggle comment (<kbd>Ctrl+/</kbd>)</li>
+            <li>Format document (<kbd>Shift+Alt+F</kbd>)</li>
+            <li>Save file (<kbd>Ctrl+S</kbd>)</li>
+            <li>Word wrap (<kbd>Alt+Z</kbd>)</li>
+          </ul>
+          <p>You can edit AI-generated files directly, create new files, rename them, delete them, and organise them into folders — all from the Explorer panel.</p>
+        </div>
+      </section>
+
+      <!-- COMMAND PALETTE -->
+      <section class="gs">
+        <div class="gs-icon">⌘</div>
+        <div class="gs-content">
+          <h2>Command Palette &amp; keyboard shortcuts</h2>
+          <p>Press <kbd>F1</kbd> (or <kbd>Ctrl+Shift+P</kbd>) anywhere in the app to open the <strong>Command Palette</strong> — a searchable list of every action in the app. Type what you want to do in plain words and run it.</p>
+          <p>Press <kbd>Ctrl+P</kbd> to <strong>Quick Open</strong> — jump to any file by typing part of its name.</p>
+          <p>The most useful shortcuts:</p>
+          <div class="shortcut-grid">
+            <span class="sk-name">Command Palette</span><kbd>F1</kbd>
+            <span class="sk-name">Quick Open file</span><kbd>Ctrl+P</kbd>
+            <span class="sk-name">Save</span><kbd>Ctrl+S</kbd>
+            <span class="sk-name">Toggle Terminal</span><kbd>Ctrl+`</kbd>
+            <span class="sk-name">Toggle Sidebar</span><kbd>Ctrl+B</kbd>
+            <span class="sk-name">New File</span><kbd>Ctrl+Alt+N</kbd>
+            <span class="sk-name">Settings</span><kbd>Ctrl+,</kbd>
+            <span class="sk-name">Word Wrap</span><kbd>Alt+Z</kbd>
+          </div>
+        </div>
+      </section>
+
+      <!-- TERMINAL -->
+      <section class="gs">
+        <div class="gs-icon">💻</div>
+        <div class="gs-content">
+          <h2>The built-in terminal</h2>
+          <p>Press <kbd>Ctrl+`</kbd> or click the terminal icon in the sidebar to open a <strong>real command-line shell</strong> that runs inside your project folder. You can use it to:</p>
+          <ul class="guide-list">
+            <li>Run Node.js scripts — <code>node myfile.js</code></li>
+            <li>Install npm packages — <code>npm install express</code></li>
+            <li>Run Python scripts — <code>python script.py</code></li>
+            <li>Use git — <code>git status</code>, <code>git commit</code></li>
+            <li>Any standard Linux command</li>
+          </ul>
+          <div class="guide-tip guide-tip-warn">⚠️ <strong>Security note:</strong> The terminal is open when running locally. On the <strong>published live site</strong> the terminal is locked and requires a password (set the <code>TERMINAL_PASSWORD</code> secret in Replit to enable it).</div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="gs">
+        <div class="gs-icon">⚙️</div>
+        <div class="gs-content">
+          <h2>Settings — make it yours</h2>
+          <p>Click the <strong>gear icon</strong> at the bottom-left of the workspace (or press <kbd>Ctrl+,</kbd>) to open Settings. You can change:</p>
+          <ul class="guide-list">
+            <li>App colour theme (dark / light)</li>
+            <li>Editor colour theme (Midnight, VS Code Dark+, Light+, High Contrast)</li>
+            <li>Font family and font size</li>
+            <li>Line height, tab size, cursor style and blink</li>
+            <li>Line numbers, word wrap, minimap</li>
+            <li>Bracket-pair colours, indent guides</li>
+            <li>Format on save, smooth scrolling</li>
+            <li>Terminal font size and cursor</li>
+          </ul>
+          <p>All settings are saved in your browser automatically and applied instantly. A <strong>Reset</strong> button puts everything back to defaults.</p>
+        </div>
+      </section>
+
+      <!-- MODELS -->
+      <section class="gs">
+        <div class="gs-icon">🚀</div>
+        <div class="gs-content">
+          <h2>AI models — what's running and how to go further</h2>
+          <p>The AI model is selected from the dropdown at the top-right of the page.</p>
+          <div class="model-table">
+            <div class="mt-row mt-head"><span>Where</span><span>Model</span><span>Quality</span><span>Speed</span></div>
+            <div class="mt-row"><span>Local (Replit open)</span><span>qwen2.5-coder:3b</span><span class="q-ok">Good</span><span class="q-fast">Fast (~4 s)</span></div>
+            <div class="mt-row"><span>Live published site</span><span>qwen2.5-coder:7b</span><span class="q-great">Great</span><span class="q-ok">Moderate</span></div>
+            <div class="mt-row mt-future"><span>Upgrade option</span><span>qwen2.5-coder:14b</span><span class="q-best">Best</span><span class="q-slow">Slower</span></div>
+          </div>
+          <p style="margin-top:14px">To pull a bigger model, open the terminal and run <code>ollama pull qwen2.5-coder:14b</code> (on the published Reserved VM). Then pick it from the dropdown. Ask the assistant to do it for you if you prefer.</p>
+          <div class="guide-tip">💡 <strong>Tip:</strong> For the fastest, smartest possible responses on the live site, ask me to connect a free <strong>Groq API key</strong> — it gives you access to Llama 3.3 70B (genuinely frontier-level quality) for free. One key, one config change.</div>
+        </div>
+      </section>
+
+      <!-- TIPS -->
+      <section class="gs">
+        <div class="gs-icon">✨</div>
+        <div class="gs-content">
+          <h2>Tips for the best results</h2>
+          <ul class="guide-list">
+            <li><strong>Be specific.</strong> "Build a to-do app" is okay. "Build a to-do app with localStorage, drag-to-reorder, priority tags, and a dark theme" is much better.</li>
+            <li><strong>Paste errors directly.</strong> Copy the full error message from the console or terminal and paste it into the chat. The AI can fix what it can see.</li>
+            <li><strong>Iterate in small steps.</strong> After a first build, add features one at a time: "now add user authentication", then "now add a settings page". Don't ask for everything at once.</li>
+            <li><strong>Tell it what language/framework you want.</strong> "Use Tailwind CSS", "write this in TypeScript", "use no libraries — plain JS only".</li>
+            <li><strong>Use web search for current info.</strong> Web search is on by default. Ask things like "what's the latest stable version of React?" and it will check.</li>
+            <li><strong>Use the terminal to run and test.</strong> After building, open the terminal and run your scripts directly to see real output.</li>
+            <li><strong>Ask it to explain its own code.</strong> After it builds something, ask "explain every part of index.html line by line" to understand and learn.</li>
+          </ul>
+        </div>
+      </section>
+
+      <div class="guide-footer">
+        Built with ❤️ for MangliJuliano · Powered by Ollama · Runs 100% on your machine
+      </div>
+
+    </div><!-- /guide-body -->
+  </div><!-- /guide-panel -->
+</div><!-- /guide-overlay -->
 
 <!-- Command palette / quick open -->
 <div class="cmdk" id="cmdk" hidden>

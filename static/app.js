@@ -990,3 +990,13 @@ loadStatus();
 setInterval(loadStatus, 15000);
 fetchTermStatus();
 autosize();
+
+/* ===================== Guide overlay ===================== */
+function openGuide(){ document.getElementById("guideOverlay").hidden=false; document.body.style.overflow="hidden"; }
+function closeGuide(){ document.getElementById("guideOverlay").hidden=true; document.body.style.overflow=""; }
+document.getElementById("guideBtn").onclick = openGuide;
+document.getElementById("guideClose").onclick = closeGuide;
+document.getElementById("guideOverlay").addEventListener("mousedown", e=>{ if(e.target.id==="guideOverlay") closeGuide(); });
+window.addEventListener("keydown", e=>{
+  if(e.key==="Escape" && !document.getElementById("guideOverlay").hidden){ closeGuide(); }
+}, true);

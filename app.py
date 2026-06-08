@@ -5,6 +5,8 @@ import socket
 import select
 import threading
 import ipaddress
+import subprocess
+import time
 
 import requests
 from urllib.parse import urlparse, urljoin
@@ -43,6 +45,90 @@ def _is_production() -> bool:
 
 IS_PROD = _is_production()
 TERMINAL_PASSWORD = os.environ.get("TERMINAL_PASSWORD", "")
+
+# ---- Model download progress -------------------------------------------------
+# In production the model may not be present yet. We pull it in a background
+# thread and track progress so the frontend can show a live status screen.
+
+_pull_status: dict = {
+    "state": "idle",   # idle | waiting | pulling | done | error
+    "percent": 0,
+    "downloaded": "",
+    "total": "",
+    "speed": "",
+    "eta": "",
+    "model": "",
+    "error": "",
+}
+
+def _wait_for_ollama(timeout: int = 180) -> bool:
+    for _ in range(timeout):
+        try:
+            r = requests.get("http://127.0.0.1:11434/api/tags", timeout=3)
+            if r.ok:
+                return True
+        except Exception:
+            pass
+        time.sleep(1)
+    return False
+
+def _model_present(model_name: str) -> bool:
+    try:
+        r = requests.get("http://127.0.0.1:11434/api/tags", timeout=5)
+        for m in r.json().get("models", []):
+            if m["name"] == model_name:
+                return True
+    except Exception:
+        pass
+    return False
+
+def _pull_model_background(model_name: str):
+    global _pull_status
+    _pull_status.update({"state": "waiting", "model": model_name})
+
+    if not _wait_for_ollama():
+        _pull_status.update({"state": "error", "error": "Ollama did not start in time"})
+        return
+
+    if _model_present(model_name):
+        _pull_status.update({"state": "done", "percent": 100})
+        return
+
+    _pull_status["state"] = "pulling"
+    try:
+        proc = subprocess.Popen(
+            ["ollama", "pull", model_name],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, bufsize=1,
+        )
+        for raw in proc.stdout:
+            line = raw.strip()
+            m = re.search(
+                r'(\d+)%.*?([\d.]+\s*\w+)/([\d.]+\s*\w+)\s+([\d.]+\s*[\w/]+)\s+(\S+)',
+                line,
+            )
+            if m:
+                _pull_status.update({
+                    "percent":    int(m.group(1)),
+                    "downloaded": m.group(2),
+                    "total":      m.group(3),
+                    "speed":      m.group(4),
+                    "eta":        m.group(5),
+                })
+        proc.wait()
+        if proc.returncode == 0:
+            _pull_status.update({"state": "done", "percent": 100})
+        else:
+            _pull_status.update({"state": "error", "error": f"ollama pull exited {proc.returncode}"})
+    except Exception as exc:
+        _pull_status.update({"state": "error", "error": str(exc)})
+
+if IS_PROD:
+    threading.Thread(
+        target=_pull_model_background,
+        args=(os.environ.get("DEFAULT_MODEL", "qwen2.5-coder:7b"),),
+        daemon=True,
+    ).start()
 
 
 def terminal_enabled() -> bool:
@@ -491,6 +577,24 @@ def preview(subpath: str = "index.html"):
 
 
 # ----------------------------- Status -----------------------------
+
+@app.route("/api/ready", methods=["GET"])
+def ready():
+    """Live model-download progress used by the frontend loading screen."""
+    s = _pull_status
+    is_ready = s["state"] in ("done", "idle")
+    return jsonify({
+        "ready":      is_ready,
+        "state":      s["state"],
+        "percent":    s["percent"],
+        "downloaded": s.get("downloaded", ""),
+        "total":      s.get("total", ""),
+        "speed":      s.get("speed", ""),
+        "eta":        s.get("eta", ""),
+        "model":      s.get("model", ""),
+        "error":      s.get("error", ""),
+    })
+
 
 @app.route("/api/status", methods=["GET"])
 def status():

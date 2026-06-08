@@ -1049,6 +1049,82 @@ async function loadStatus(){
 }
 $("#modelSelect").onchange = e=>{ model = e.target.value; };
 
+/* ===================== ARIA Ready / download progress ===================== */
+
+let _readyTimer = null;
+
+function _fmtEta(raw){
+  if(!raw) return '';
+  return raw
+    .replace(/(\d+)h(\d+)m\S*/,'$1h $2m')
+    .replace(/(\d+)m(\d+)s/,'$1m $2s')
+    .replace(/(\d+)m0s/,'$1m')
+    .replace(/^0s$/,'almost done');
+}
+
+async function _checkReady(){
+  try{
+    const r = await fetch('/api/ready');
+    const d = await r.json();
+    const overlay = $('#ariaReadyOverlay');
+
+    if(d.ready){
+      overlay.hidden = true;
+      if(_readyTimer){ clearInterval(_readyTimer); _readyTimer=null; }
+      loadStatus();
+      return;
+    }
+
+    overlay.hidden = false;
+    const bar    = $('#ariaReadyBar');
+    const stats  = $('#ariaReadyStats');
+    const sub    = $('#ariaReadySub');
+    const note   = $('#ariaReadyNote');
+    const title  = $('#ariaReadyTitle');
+
+    if(d.state === 'waiting'){
+      bar.style.width = '4%';
+      title.textContent = 'Getting ARIA ready…';
+      sub.textContent   = 'Starting AI engine…';
+      stats.textContent = 'Waiting for Ollama to start';
+      note.textContent  = 'ARIA will be ready automatically — no need to refresh.';
+    } else if(d.state === 'pulling'){
+      const pct = d.percent || 0;
+      bar.style.width  = Math.max(pct, 4) + '%';
+      bar.style.background = '';
+      title.textContent = pct < 5 ? 'Downloading AI model…' : `Downloading ARIA Pro  ·  ${pct}%`;
+      sub.textContent   = d.model ? `Model: ${d.model}` : 'Downloading…';
+      const parts = [];
+      if(d.downloaded && d.total) parts.push(`${d.downloaded} of ${d.total}`);
+      if(d.speed)  parts.push(d.speed);
+      if(d.eta)    parts.push(`${_fmtEta(d.eta)} left`);
+      stats.textContent = parts.length ? parts.join('   ·   ') : 'Downloading…';
+      note.textContent  = 'This download only happens once — next time ARIA starts instantly.';
+    } else if(d.state === 'error'){
+      bar.style.width      = '100%';
+      bar.style.background = '#ff4444';
+      title.textContent    = 'Download failed';
+      sub.textContent      = d.error || 'Unknown error';
+      stats.textContent    = 'Try refreshing the page.';
+      note.textContent     = '';
+    }
+  }catch(e){
+    /* server not reachable yet — keep polling */
+  }
+}
+
+async function _initReady(){
+  try{
+    const d = await fetch('/api/ready').then(r=>r.json());
+    if(!d.ready){
+      _checkReady();
+      _readyTimer = setInterval(_checkReady, 2000);
+    }
+  }catch(e){
+    /* not a production deployment — skip overlay */
+  }
+}
+
 /* ===================== Boot ===================== */
 loadSettings();
 applyAppTheme();
@@ -1058,6 +1134,7 @@ try{ setMode(localStorage.getItem(STORE.mode)||"chat"); }catch(e){ setMode("chat
 initMonaco();
 loadFiles();
 setView("explorer");
+_initReady();
 loadStatus();
 setInterval(loadStatus, 15000);
 fetchTermStatus();

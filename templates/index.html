@@ -294,27 +294,34 @@
                 <button id="ghDisconnect" class="gh-link-btn">Disconnect</button>
               </div>
 
-              <label class="gh-label">Repository <span class="gh-hint-inline">(owner/repo)</span></label>
+              <label class="gh-label">Repository</label>
               <input type="text" id="ghRepo" class="gh-input" placeholder="julianomangli/my-app" autocomplete="off" spellcheck="false">
+              <div class="gh-repo-actions">
+                <button id="ghMyRepos" class="gh-repo-btn">My Repos ▾</button>
+                <button id="ghNewRepo" class="gh-repo-btn gh-repo-btn-new">+ New</button>
+              </div>
+              <div id="ghRepoList" class="gh-repo-list" hidden></div>
 
-              <label class="gh-label">Branch</label>
+              <label class="gh-label" style="margin-top:6px">Branch</label>
               <input type="text" id="ghBranch" class="gh-input" value="main" placeholder="main" autocomplete="off" spellcheck="false">
 
               <div class="gh-divider"></div>
 
-              <div id="ghFileCount" class="gh-badge">No project files yet — build something first</div>
+              <div id="ghFileCount" class="gh-badge">Checking project files…</div>
 
-              <button id="ghGenMsg" class="gh-btn-secondary">
+              <button id="ghGenMsg" class="gh-btn-secondary" style="margin-top:8px">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                Generate smart commit message
+                Generate commit message with AI
               </button>
-              <textarea id="ghCommitMsg" class="gh-textarea" placeholder="Describe what you built or changed…" rows="3"></textarea>
+              <textarea id="ghCommitMsg" class="gh-textarea" placeholder="What did you build or change?" rows="3"></textarea>
 
+              <div id="ghPushHint" class="gh-push-hint"></div>
               <button id="ghPush" class="gh-btn-push" disabled>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-                Push to GitHub
+                Commit &amp; Push
               </button>
 
+              <a id="ghOpenRepo" class="gh-open-repo" href="#" target="_blank" rel="noopener" hidden></a>
               <div id="ghLog" class="gh-log"></div>
             </div>
 

@@ -395,3 +395,21 @@ textarea#input::placeholder{color:var(--text-3)}
 .gh-log .log-err{color:#f87171}
 .gh-log .log-link{color:var(--accent-2);text-decoration:underline}
 .gh-err{font-size:12px;color:#f87171;margin-top:6px;min-height:0}
+
+/* GitHub panel — repo actions row */
+.gh-repo-actions{display:flex;gap:6px;margin-top:5px}
+.gh-repo-btn{flex:1;padding:7px 10px;background:var(--panel-2);border:1px solid var(--border-2);border-radius:8px;font-size:12px;font-weight:600;color:var(--text-2);cursor:pointer}
+.gh-repo-btn:hover:not(:disabled){border-color:var(--accent);color:var(--text)}
+.gh-repo-btn:disabled{opacity:.5;cursor:not-allowed}
+.gh-repo-btn-new{color:var(--accent-2)!important;border-color:rgba(99,102,241,.3)}
+.gh-repo-btn-new:hover:not(:disabled){background:rgba(99,102,241,.1)!important}
+/* Repo picker list */
+.gh-repo-list{margin-top:4px;background:var(--panel-2);border:1px solid var(--border-2);border-radius:9px;max-height:160px;overflow-y:auto}
+.gh-repo-item{display:block;width:100%;padding:8px 12px;text-align:left;font-size:12.5px;color:var(--text-2);background:none;border:none;cursor:pointer;border-bottom:1px solid var(--border)}
+.gh-repo-item:last-child{border-bottom:none}
+.gh-repo-item:hover{background:var(--hover);color:var(--text)}
+/* Push hint */
+.gh-push-hint{font-size:11.5px;color:var(--text-3);text-align:center;min-height:16px;margin:4px 0 0}
+/* Open on GitHub link */
+.gh-open-repo{display:block;text-align:center;font-size:12.5px;font-weight:600;color:var(--accent-2);padding:8px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:8px;margin-top:8px;text-decoration:none}
+.gh-open-repo:hover{background:rgba(99,102,241,.16)}

@@ -1043,12 +1043,86 @@ function ghRefreshState(){
   }
 }
 
-function ghRefreshFiles(){
-  const count = fileCache.length;
-  const badge = $("#ghFileCount");
-  if(count===0){ badge.textContent="No project files yet — build something first"; badge.classList.remove("has-files"); }
-  else { badge.textContent=count+" file"+(count===1?"":"s")+" ready to push"; badge.classList.add("has-files"); }
-  $("#ghPush").disabled = count===0 || !$("#ghRepo").value.trim();
+async function ghRefreshFiles(){
+  try{
+    const r = await fetch("/api/project/files");
+    const d = await r.json();
+    const files = d.files || [];
+    fileCache = files.slice();
+    const count = files.length;
+    const badge = $("#ghFileCount");
+    if(count===0){ badge.textContent="No project files yet — build something first"; badge.classList.remove("has-files"); }
+    else { badge.textContent=count+" file"+(count===1?"":"s")+" ready to push"; badge.classList.add("has-files"); }
+  }catch(e){}
+  ghCheckPushReady();
+}
+
+function ghCheckPushReady(){
+  const hasFiles = fileCache.length > 0;
+  const hasRepo  = $("#ghRepo").value.trim().includes("/");
+  const hint = $("#ghPushHint");
+  if(!hasFiles)      hint.textContent = "Build a project first";
+  else if(!hasRepo)  hint.textContent = "Enter or pick a repo above";
+  else               hint.textContent = "";
+  $("#ghPush").disabled = !hasFiles || !hasRepo;
+}
+
+async function ghShowRepos(){
+  const token = localStorage.getItem(GH_KEY);
+  const btn = $("#ghMyRepos");
+  const list = $("#ghRepoList");
+  if(!list.hidden){ list.hidden=true; return; }
+  btn.disabled=true; btn.textContent="Loading…";
+  try{
+    const r = await fetch("https://api.github.com/user/repos?per_page=100&sort=updated", {
+      headers:{"Authorization":"Bearer "+token,"Accept":"application/vnd.github+json"}
+    });
+    if(!r.ok) throw new Error("GitHub error");
+    const repos = await r.json();
+    list.innerHTML="";
+    if(!repos.length){ toast("No repos found on your account."); return; }
+    repos.forEach(repo=>{
+      const item = document.createElement("button");
+      item.className="gh-repo-item";
+      item.textContent=repo.full_name+(repo.private?" 🔒":"");
+      item.onclick=()=>{
+        $("#ghRepo").value=repo.full_name;
+        localStorage.setItem(GH_REPO_KEY, repo.full_name);
+        list.hidden=true;
+        ghCheckPushReady();
+      };
+      list.appendChild(item);
+    });
+    list.hidden=false;
+  }catch(e){ toast("Could not load repos: "+e.message); }
+  finally{ btn.disabled=false; btn.textContent="My Repos ▾"; }
+}
+
+async function ghCreateRepo(){
+  const token = localStorage.getItem(GH_KEY);
+  const user  = localStorage.getItem("gh_user_v1");
+  const raw   = $("#ghRepo").value.trim();
+  const name  = raw.includes("/") ? raw.split("/")[1] : raw;
+  if(!name){ toast("Type a repo name first."); return; }
+  const fullName = user+"/"+name;
+  const btn = $("#ghNewRepo");
+  btn.disabled=true; btn.textContent="Creating…";
+  try{
+    const r = await fetch("https://api.github.com/user/repos",{
+      method:"POST",
+      headers:{"Authorization":"Bearer "+token,"Accept":"application/vnd.github+json","Content-Type":"application/json"},
+      body: JSON.stringify({name, description:"Built with AI Assistant Unlimited", private:false, auto_init:false})
+    });
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.message||"Failed");
+    $("#ghRepo").value=fullName;
+    localStorage.setItem(GH_REPO_KEY, fullName);
+    ghCheckPushReady();
+    toast("Repo created: "+fullName+" ✓","ok");
+    ghLog("✓ Repo created: "+fullName, "ok");
+    $("#ghLog").classList.add("visible");
+  }catch(e){ toast("Create failed: "+e.message); }
+  finally{ btn.disabled=false; btn.textContent="+ New"; }
 }
 
 // Connect button
@@ -1080,12 +1154,15 @@ $("#ghDisconnect").onclick = ()=>{
   ghRefreshState(); toast("Disconnected from GitHub");
 };
 
-// Save repo/branch on change
+// Repo/branch persistence + button wiring
 $("#ghRepo").addEventListener("input", ()=>{
   localStorage.setItem(GH_REPO_KEY, $("#ghRepo").value);
-  ghRefreshFiles();
+  $("#ghRepoList").hidden=true;
+  ghCheckPushReady();
 });
 $("#ghBranch").addEventListener("input", ()=>{ localStorage.setItem(GH_BRANCH_KEY, $("#ghBranch").value); });
+$("#ghMyRepos").onclick = ()=>ghShowRepos();
+$("#ghNewRepo").onclick = ()=>ghCreateRepo();
 
 // Generate commit message with AI
 $("#ghGenMsg").onclick = async ()=>{
@@ -1130,11 +1207,15 @@ $("#ghPush").onclick = async ()=>{
     });
     const d = await r.json();
     if(d.error) throw new Error(d.error);
-    ghLog("✓ "+d.files+" files pushed", "ok");
+    ghLog("✓ "+d.files+" file"+(d.files===1?"":"s")+" pushed", "ok");
     ghLog("✓ Commit: "+d.sha, "ok");
-    ghLogLink("→ View on GitHub", d.url);
-    ghLog("→ Repo: "+d.repo_url, "ok");
+    ghLogLink("→ View commit on GitHub", d.url);
     toast("Pushed to GitHub ✓", "ok");
+    // Show "Open on GitHub" link
+    const openLink = $("#ghOpenRepo");
+    openLink.href = d.repo_url;
+    openLink.textContent = "🔗 Open "+d.repo_url.replace("https://github.com/","")+" on GitHub";
+    openLink.hidden = false;
     // Clear commit message so next push needs a fresh one
     $("#ghCommitMsg").value="";
   } catch(e){

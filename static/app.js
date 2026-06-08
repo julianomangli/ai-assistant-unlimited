@@ -1,6 +1,27 @@
-/* ===================== AI Assistant Unlimited — frontend ===================== */
+/* ===================== ARIA — AI-Powered Dev Studio ===================== */
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
+
+/* ARIA branded model names — shown in the UI instead of raw Ollama IDs */
+const ARIA_MODEL_NAMES = {
+  'qwen2.5-coder:1.5b': 'ARIA Nano',
+  'qwen2.5-coder:3b':   'ARIA Core',
+  'qwen2.5-coder:7b':   'ARIA Pro',
+  'qwen2.5-coder:14b':  'ARIA Ultra',
+  'qwen2.5-coder:32b':  'ARIA Max',
+  'qwen2.5:3b':         'ARIA Core',
+  'qwen2.5:7b':         'ARIA Pro',
+  'llama3.2:1b':        'ARIA Llama Nano',
+  'llama3.2:3b':        'ARIA Llama 3',
+  'llama3.1:8b':        'ARIA Llama Pro',
+  'mistral:7b':         'ARIA Mistral',
+  'mistral:latest':     'ARIA Mistral',
+  'deepseek-coder:6.7b':'ARIA DeepSeek',
+  'codellama:7b':       'ARIA CodeLlama',
+  'phi3:mini':          'ARIA Phi',
+  'tinyllama:latest':   'ARIA Nano',
+};
+function ariaModelName(m){ return m ? (ARIA_MODEL_NAMES[m] || ('ARIA · ' + m)) : 'ARIA'; }
 const SESSION = "default";
 const MONACO_VER = "0.50.0";
 const MONACO_BASE = `https://cdn.jsdelivr.net/npm/monaco-editor@${MONACO_VER}/min`;
@@ -1009,15 +1030,15 @@ async function loadStatus(){
     $("#statusText").textContent = on
       ? `Ollama running${d.web_search?" · web search on":""}`
       : "Ollama offline — run: ollama serve";
-    $("#sbModel").textContent = on ? (d.model||"model") : "offline";
+    $("#sbModel").textContent = on ? ariaModelName(d.model) : "offline";
     const sel = $("#modelSelect");
     if(d.models && d.models.length){
       sel.innerHTML="";
-      d.models.forEach(m=>{ const o=document.createElement("option"); o.value=m; o.textContent=m; sel.appendChild(o); });
+      d.models.forEach(m=>{ const o=document.createElement("option"); o.value=m; o.textContent=ariaModelName(m); sel.appendChild(o); });
       model = d.model && d.models.includes(d.model) ? d.model : d.models[0];
       sel.value = model;
     }else{
-      sel.innerHTML = `<option>${d.model||"no models"}</option>`;
+      sel.innerHTML = `<option value="${d.model||""}">${ariaModelName(d.model)||"no models"}</option>`;
       model = d.model;
     }
   }catch(e){

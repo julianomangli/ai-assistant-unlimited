@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ARIA — AI Assistant Unlimited</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+<title>ARIA — AI-Powered Dev Studio</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'><rect width='36' height='36' rx='9' fill='%23050d05'/><polygon points='18,5 29,29 7,29' fill='none' stroke='%2300ff88' stroke-width='3' stroke-linejoin='round'/><line x1='11' y1='22' x2='25' y2='22' stroke='%2300ff88' stroke-width='3' stroke-linecap='round'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -17,9 +17,18 @@
   <!-- ===================== Title bar ===================== -->
   <header class="titlebar">
     <div class="brand">
-      <div class="logo">🤖</div>
-      <h1>AI Assistant Unlimited</h1>
-      <span class="by">by MangliJuliano 🍃</span>
+      <div class="aria-logo">
+        <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="36" height="36" rx="9" fill="#050d05"/>
+          <polygon points="18,5 29,29 7,29" fill="none" stroke="#00ff88" stroke-width="2.5" stroke-linejoin="round"/>
+          <line x1="11.5" y1="22" x2="24.5" y2="22" stroke="#00ff88" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1 class="brand-name">ARIA</h1>
+        <span class="brand-sub">AI-Powered Dev Studio</span>
+      </div>
+      <span class="by">by MangliJuliano</span>
     </div>
     <div class="spacer"></div>
     <div class="pill">
@@ -509,10 +518,16 @@
   <div class="guide-panel">
     <div class="guide-header">
       <div class="guide-title-block">
-        <span class="guide-logo">🤖</span>
+        <div class="guide-logo-svg">
+          <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="36" height="36" rx="9" fill="#050d05"/>
+            <polygon points="18,5 29,29 7,29" fill="none" stroke="#00ff88" stroke-width="2.5" stroke-linejoin="round"/>
+            <line x1="11.5" y1="22" x2="24.5" y2="22" stroke="#00ff88" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
         <div>
-          <div class="guide-title">What can this AI do?</div>
-          <div class="guide-sub">Everything you need to know — no technical knowledge required.</div>
+          <div class="guide-title">About ARIA</div>
+          <div class="guide-sub">Your private AI-powered dev studio — everything you need to know.</div>
         </div>
       </div>
       <button class="guide-close" id="guideClose" title="Close">✕</button>
@@ -524,9 +539,10 @@
       <section class="gs">
         <div class="gs-icon">🧠</div>
         <div class="gs-content">
-          <h2>What is this app?</h2>
-          <p>This is a <strong>free, completely private AI assistant</strong> that runs entirely on your own machine. Your conversations are never sent to OpenAI, Google, or any cloud service. The AI model lives here — on this server — and nobody else sees what you type.</p>
-          <p>It has two main uses: <strong>Chat</strong> (ask it anything) and <strong>Build</strong> (describe an app and it writes the code live).</p>
+          <h2>What is ARIA?</h2>
+          <p><strong>ARIA</strong> (Adaptive Reasoning &amp; Intelligence Assistant) is a free, completely private AI that runs entirely on your own machine. Your conversations are never sent to OpenAI, Google, or any cloud service — the model lives here, and nobody else sees what you type.</p>
+          <p>ARIA has two modes: <strong>Chat</strong> (ask her anything) and <strong>Build</strong> (describe an app and she writes the code live, with a preview you can see and download).</p>
+          <p>The more you work with ARIA in a session, the sharper she gets — she builds context from your messages and your project files as you go.</p>
         </div>
       </section>
 
@@ -549,8 +565,8 @@
               <div class="warn-body">The AI's built-in knowledge was frozen when the model was trained. It doesn't know about things that happened after that. <strong>Web Search is on by default</strong> to help with current topics, but it's not perfect either — always verify important facts.</div>
             </div>
             <div class="warn-card">
-              <div class="warn-title">The local model is small — good, not genius</div>
-              <div class="warn-body">The local model (<strong>qwen2.5-coder:3b</strong>) is optimised for coding and runs fast for free. The published live site uses the larger <strong>7B model</strong> — noticeably smarter. Neither is as powerful as GPT-4 or Claude. Great for drafts and real projects; not infallible.</div>
+              <div class="warn-title">ARIA Core is fast and free — ARIA Pro is sharper</div>
+              <div class="warn-body"><strong>ARIA Core</strong> (local, 3B) is optimised for coding, runs instantly for free, and never leaves your machine. The published live site runs <strong>ARIA Pro</strong> (7B) — noticeably sharper. Neither matches GPT-4 or Claude yet. Great for real projects; always review the output.</div>
             </div>
             <div class="warn-card">
               <div class="warn-title">Built apps are web-only</div>

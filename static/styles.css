@@ -142,6 +142,16 @@ input,select,textarea{font-family:inherit}
 .w-gh-card-sub{font-size:11px;color:rgba(255,255,255,.38);font-family:'JetBrains Mono',monospace}
 .w-gh-connect-btn{flex-shrink:0;padding:8px 14px;background:rgba(0,255,136,.12);border:1px solid rgba(0,255,136,.35);border-radius:8px;color:#00ff88;font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;cursor:pointer;transition:.2s;white-space:nowrap;text-shadow:0 0 8px rgba(0,255,136,.5)}
 .w-gh-connect-btn:hover{background:rgba(0,255,136,.22);border-color:#00ff88;box-shadow:0 0 14px rgba(0,255,136,.3)}
+.w-gh-token-link{color:rgba(0,255,136,.7);text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:11px;transition:.2s}
+.w-gh-token-link:hover{color:#00ff88;text-shadow:0 0 8px rgba(0,255,136,.5)}
+.w-gh-token-row{display:flex;align-items:center;gap:8px;padding:0 16px 12px}
+.w-gh-token-wrap{flex:1;position:relative;display:flex;align-items:center}
+.w-gh-token-input{width:100%;background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.2);border-radius:8px;color:#e8e8f0;font-size:12px;font-family:'JetBrains Mono',monospace;padding:8px 36px 8px 10px;outline:none;transition:.2s}
+.w-gh-token-input::placeholder{color:rgba(255,255,255,.2)}
+.w-gh-token-input:focus{border-color:rgba(0,255,136,.5);box-shadow:0 0 10px rgba(0,255,136,.1)}
+.w-gh-token-eye{position:absolute;right:8px;background:none;border:none;cursor:pointer;font-size:13px;line-height:1;opacity:.6;padding:2px;transition:.2s}
+.w-gh-token-eye:hover{opacity:1}
+.w-gh-token-err{padding:0 16px 10px;font-size:11px;color:#f87171;font-family:'JetBrains Mono',monospace;min-height:14px}
 
 /* Connected state */
 .w-gh-ok-row{background:rgba(34,197,94,.04);animation:borderPulseOk 3s ease-in-out infinite,cardEntrance .65s .2s both!important}

@@ -1339,12 +1339,38 @@ function initWelcomeGhState(){
     notConn.hidden = true;
     conn.hidden    = false;
     if(userEl) userEl.textContent = "@" + user;
-    // Swap card to green pulse animation
     const card = document.getElementById("wGhCard");
     if(card) card.style.animation = "borderPulseOk 3s ease-in-out infinite, cardEntrance .65s .2s both";
   } else {
     notConn.hidden = false;
     conn.hidden    = true;
+  }
+}
+
+async function wGhSaveToken(){
+  const input  = document.getElementById("wGhTokenInput");
+  const errEl  = document.getElementById("wGhTokenErr");
+  const btn    = document.getElementById("wGhSaveBtn");
+  const token  = input ? input.value.trim() : "";
+  if(!token){ if(errEl) errEl.textContent = "Paste your token first."; return; }
+  if(errEl) errEl.textContent = "";
+  const orig = btn.textContent;
+  btn.textContent = "Verifying…"; btn.disabled = true;
+  try {
+    const r = await fetch("https://api.github.com/user", {
+      headers:{ Authorization:`Bearer ${token}`, Accept:"application/vnd.github+json", "User-Agent":"AI-Assistant-Unlimited" }
+    });
+    if(!r.ok) throw new Error(r.status === 401 ? "Invalid token — check it and try again." : `GitHub error ${r.status}`);
+    const data = await r.json();
+    localStorage.setItem("gh_token_v1",  token);
+    localStorage.setItem("gh_user_v1",   data.login);
+    localStorage.setItem("gh_email_v1",  data.email || "");
+    input.value = "";
+    initWelcomeGhState();
+    if(typeof ghCheckConn === "function") ghCheckConn();
+  } catch(e){
+    if(errEl) errEl.textContent = "✗ " + (e.message || "Could not verify token");
+    btn.textContent = orig; btn.disabled = false;
   }
 }
 

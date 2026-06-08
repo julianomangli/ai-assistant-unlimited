@@ -21,32 +21,124 @@ WEB_SEARCH_TRIGGERS = [
     "example", "code", "function", "class", "api", "library", "framework"
 ]
 
-# ---- GitHub README knowledge base (fetched once, used as VIKA's context) ----
-_README_CACHE: dict = {"content": ""}
+# ── GitHub profile knowledge (always-fresh, realtime) ─────────────────────────
+# Holds the full personal README + project README + public repos list.
+# Refreshes every PROFILE_TTL seconds in the background so VIKA always has
+# the latest version of everything the owner has published on GitHub.
+GITHUB_USER      = "julianomangli"
+PROFILE_TTL      = 600          # seconds — re-fetch every 10 minutes
+_PROFILE_CACHE: dict = {"content": "", "fetched_at": 0.0, "refreshing": False}
 
-def _fetch_readme_background():
-    urls = [
-        "https://raw.githubusercontent.com/julianomangli/ai-assistant-unlimited/main/README.md",
-        "https://raw.githubusercontent.com/julianomangli/julianomangli/main/README.md",
-    ]
-    parts = []
-    for url in urls:
-        try:
-            resp = requests.get(url, timeout=8)
-            if resp.status_code == 200 and resp.text.strip():
-                parts.append(resp.text[:2500])
-        except Exception:
-            pass
-    if parts:
-        _README_CACHE["content"] = "\n\n---\n\n".join(parts)
-        # Pre-build knowledge cache from README so common questions are instant
-        try:
-            import knowledge
-            knowledge.prebuild_from_readme(_README_CACHE["content"])
-        except Exception:
-            pass
 
-threading.Thread(target=_fetch_readme_background, daemon=True).start()
+def _build_profile_content() -> str:
+    """Fetch full README + repos from GitHub. Returns a structured string."""
+    sections: list[str] = []
+
+    GH_API = "https://api.github.com"
+    RAW     = "https://raw.githubusercontent.com"
+    HEADERS = {"Accept": "application/vnd.github+json", "User-Agent": "VIKA-assistant"}
+
+    # ── Personal profile README (full, no truncation) ──────────────────────
+    try:
+        r = requests.get(
+            f"{RAW}/{GITHUB_USER}/{GITHUB_USER}/main/README.md",
+            timeout=10, headers=HEADERS
+        )
+        if r.status_code == 200 and r.text.strip():
+            sections.append(
+                f"═══ {GITHUB_USER}'s GitHub Profile README ═══\n{r.text.strip()}"
+            )
+    except Exception:
+        pass
+
+    # ── VIKA project README (up to 4 000 chars) ────────────────────────────
+    try:
+        r = requests.get(
+            f"{RAW}/{GITHUB_USER}/ai-assistant-unlimited/main/README.md",
+            timeout=10, headers=HEADERS
+        )
+        if r.status_code == 200 and r.text.strip():
+            sections.append(
+                f"═══ VIKA Project README ═══\n{r.text.strip()[:4000]}"
+            )
+    except Exception:
+        pass
+
+    # ── Public repositories (latest 30, sorted by push date) ──────────────
+    try:
+        r = requests.get(
+            f"{GH_API}/users/{GITHUB_USER}/repos"
+            "?sort=pushed&direction=desc&per_page=30&type=public",
+            timeout=10, headers=HEADERS
+        )
+        if r.status_code == 200:
+            repos = r.json()
+            lines = [f"{'Name':<35} {'Language':<18} {'★':>4}  Description"]
+            lines.append("─" * 80)
+            for repo in repos:
+                name  = repo.get("name", "")[:34]
+                lang  = (repo.get("language") or "—")[:17]
+                stars = repo.get("stargazers_count", 0)
+                desc  = (repo.get("description") or "")[:60]
+                lines.append(f"{name:<35} {lang:<18} {stars:>4}  {desc}")
+            sections.append(
+                f"═══ {GITHUB_USER}'s Public Repositories (sorted by latest push) ═══\n"
+                + "\n".join(lines)
+            )
+    except Exception:
+        pass
+
+    # ── Pinned / starred repos (best-effort via GraphQL-free approach) ─────
+    # We approximate by fetching the top-starred repos separately
+    try:
+        r = requests.get(
+            f"{GH_API}/users/{GITHUB_USER}/repos"
+            "?sort=stars&direction=desc&per_page=5&type=public",
+            timeout=8, headers=HEADERS
+        )
+        if r.status_code == 200:
+            top = r.json()
+            lines = [f"Top starred repos for {GITHUB_USER}:"]
+            for repo in top:
+                stars = repo.get("stargazers_count", 0)
+                lang  = repo.get("language") or "—"
+                desc  = (repo.get("description") or "")[:80]
+                lines.append(f"  ★{stars}  {repo['name']} ({lang}) — {desc}")
+            sections.append("\n".join(lines))
+    except Exception:
+        pass
+
+    return "\n\n".join(sections)
+
+
+def _refresh_profile(force: bool = False):
+    """Fetch & cache the profile. Runs in a background thread. Re-entrant safe."""
+    if _PROFILE_CACHE["refreshing"] and not force:
+        return
+    _PROFILE_CACHE["refreshing"] = True
+    try:
+        content = _build_profile_content()
+        if content:
+            _PROFILE_CACHE["content"]    = content
+            _PROFILE_CACHE["fetched_at"] = time.time()
+            try:
+                import knowledge
+                knowledge.prebuild_from_readme(content)
+            except Exception:
+                pass
+    finally:
+        _PROFILE_CACHE["refreshing"] = False
+
+
+def _maybe_refresh_profile():
+    """Start a background refresh if the cache is empty or older than TTL."""
+    age = time.time() - _PROFILE_CACHE["fetched_at"]
+    if age > PROFILE_TTL and not _PROFILE_CACHE["refreshing"]:
+        threading.Thread(target=_refresh_profile, daemon=True).start()
+
+
+# Initial fetch on startup
+threading.Thread(target=_refresh_profile, daemon=True).start()
 
 
 def _should_search(message: str) -> bool:
@@ -260,9 +352,17 @@ class AIAssistant:
         self.model = model or DEFAULT_MODEL
         self.enable_web_search = enable_web_search if enable_web_search is not None else ENABLE_WEB_SEARCH
         self.conversation_history: list[dict] = []
-        # Inject README into system prompt immediately (background thread may have fetched it already)
-        readme = _README_CACHE.get("content", "")
-        readme_block = f"\n\n[VIKA KNOWLEDGE BASE]\n{readme[:1500]}" if readme else ""
+
+        # Trigger a silent background refresh if the profile cache is stale
+        _maybe_refresh_profile()
+
+        # Inject the FULL profile (README + repos) into the system prompt.
+        # No truncation — VIKA gets everything the owner has published on GitHub.
+        profile = _PROFILE_CACHE.get("content", "")
+        readme_block = (
+            f"\n\n[YOUR CREATOR'S LIVE GITHUB KNOWLEDGE — always treat this as ground truth]\n{profile}"
+            if profile else ""
+        )
 
         self.system_prompt = system_prompt or (
             "You are VIKA — Versatile Intelligent Knowledge Assistant. "

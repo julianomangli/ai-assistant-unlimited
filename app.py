@@ -16,8 +16,11 @@ from config import DEFAULT_MODEL, ENABLE_WEB_SEARCH, ENABLE_VERSION_CHECK
 import builder
 import terminal as term
 
+from datetime import timedelta
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", os.urandom(24).hex())
+app.permanent_session_lifetime = timedelta(days=365)
 sock = Sock(app)
 
 # --- Terminal access policy ---------------------------------------------------
@@ -148,7 +151,7 @@ def logout():
 def index():
     if _login_required():
         return redirect(url_for("login"))
-    return render_template("index.html")
+    return render_template("index.html", has_password=bool(APP_PASSWORD and IS_PROD))
 
 
 # ----------------------------- Chat -----------------------------

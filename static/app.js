@@ -1384,7 +1384,7 @@ function initWelcomeGhState(){
   if(!notConn || !conn) return;
   const token = localStorage.getItem("gh_token_v1");
   const user  = localStorage.getItem("gh_user_v1");
-  if(token && user){
+  if(token){
     notConn.hidden = true;
     conn.hidden    = false;
     if(userEl) userEl.textContent = "@" + user;

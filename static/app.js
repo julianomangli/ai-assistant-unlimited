@@ -64,9 +64,9 @@ function renderMsgNode(role, text){
   const isAI = role==="ai";
   const msg = document.createElement("div"); msg.className="msg";
   msg.innerHTML = `
-    <div class="avatar ${isAI?'ai':'user'}">${isAI?'🤖':'Y'}</div>
+    <div class="avatar ${isAI?'ai':'user'}">${isAI?'J.':'U'}</div>
     <div style="flex:1;min-width:0">
-      <div class="role">${isAI?'Assistant':'You'}</div>
+      <div class="role">${isAI?'J.A.R.V.I.S.':'You'}</div>
       <div class="bubble">${isAI?renderMarkdown(text):escapeHtml(text).replace(/\n/g,"<br>")}</div>
     </div>`;
   wrap.appendChild(msg);
@@ -89,8 +89,8 @@ function restoreChat(){
 }
 function addTyping(){
   const wrap = document.createElement("div"); wrap.className="msg-wrap"; wrap.id="typingWrap";
-  wrap.innerHTML = `<div class="msg"><div class="avatar ai">🤖</div>
-    <div style="flex:1"><div class="role">Assistant</div>
+  wrap.innerHTML = `<div class="msg"><div class="avatar ai">J.</div>
+    <div style="flex:1"><div class="role">J.A.R.V.I.S.</div>
     <div class="typing"><span></span><span></span><span></span></div></div></div>`;
   $("#messages").appendChild(wrap); $("#messages").scrollTop = $("#messages").scrollHeight;
 }

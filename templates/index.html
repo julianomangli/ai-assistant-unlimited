@@ -157,6 +157,9 @@
         <button class="act" data-view="preview" title="Live preview">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/></svg>
         </button>
+        <button class="act" data-view="browser" title="Web browser — read docs &amp; sites">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        </button>
         <button class="act" id="termToggleAct" title="Terminal (Ctrl+`)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
         </button>
@@ -410,6 +413,39 @@
             </button>
           </div>
           <iframe id="previewFrame" src="/preview/" sandbox="allow-scripts allow-forms allow-popups allow-modals allow-pointer-lock"></iframe>
+        </div>
+
+        <div class="browser-view hidden" id="browserView">
+          <div class="browser-toolbar">
+            <button class="pv-btn" id="brBack" title="Back" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            </button>
+            <button class="pv-btn" id="brReload" title="Reload">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </button>
+            <input id="brUrl" class="browser-url" type="text" spellcheck="false" autocomplete="off" placeholder="Enter a website or search — tailwindcss.com, vercel.com, python.org…" />
+            <button class="pv-btn" id="brGo" title="Go">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </button>
+            <button class="pv-btn" id="brOpen" title="Open in a real browser tab">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </button>
+          </div>
+          <div class="browser-chips" id="brChips">
+            <button data-url="https://tailwindcss.com/docs">Tailwind CSS</button>
+            <button data-url="https://vercel.com/docs">Vercel</button>
+            <button data-url="https://docs.python.org/3/">Python</button>
+            <button data-url="https://developer.mozilla.org/en-US/">MDN</button>
+            <button data-url="https://github.com">GitHub</button>
+          </div>
+          <div class="browser-stage">
+            <iframe id="browserFrame" class="browser-frame hidden" sandbox="allow-scripts allow-forms allow-popups allow-modals"></iframe>
+            <div class="browser-blank" id="brBlank">
+              <div class="bb-glyph">◴</div>
+              <p>Type a website above to read it right here — docs, references, anything.</p>
+              <p class="bb-note">Best for reading sites &amp; docs in desktop mode. Some apps that require a login or actively block embedding may not fully load.</p>
+            </div>
+          </div>
         </div>
 
         <!-- Terminal panel -->

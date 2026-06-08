@@ -156,10 +156,13 @@ function setView(view){
   activeView = view;
   $$(".act").forEach(a=>a.classList.toggle("active", a.dataset.view===view));
   const isPreview = view==="preview";
+  const isBrowser = view==="browser";
+  const isFull = isPreview || isBrowser;
   $("#previewView").classList.toggle("hidden", !isPreview);
-  $("#editorView").classList.toggle("hidden", isPreview);
-  $("#sidebar").classList.toggle("collapsed", isPreview);
-  if(!isPreview){
+  $("#browserView").classList.toggle("hidden", !isBrowser);
+  $("#editorView").classList.toggle("hidden", isFull);
+  $("#sidebar").classList.toggle("collapsed", isFull);
+  if(!isFull){
     $("#explorerView").classList.toggle("hidden", view!=="explorer");
     $("#settingsView").classList.toggle("hidden", view!=="settings");
     $("#githubView").classList.toggle("hidden", view!=="github");
@@ -167,12 +170,57 @@ function setView(view){
     if(window.__editor) window.__editor.layout();
   }
   if(isPreview) reloadPreview();
+  if(isBrowser) setTimeout(()=>$("#brUrl") && $("#brUrl").focus(), 60);
 }
 $$(".act").forEach(a=>{ a.onclick = ()=>setView(a.dataset.view); });
 
 function reloadPreview(){ $("#previewFrame").src = "/preview/?t=" + Date.now(); }
 $("#pvRefresh").onclick = reloadPreview;
 $("#pvOpen").onclick = ()=>window.open("/preview/","_blank");
+
+/* ===================== In-app browser ===================== */
+let brHist = [], brIdx = -1;
+const brFrame = ()=>$("#browserFrame");
+function brProxy(u){ return "/proxy?url=" + encodeURIComponent(u); }
+function brSetBar(u){ const el=$("#brUrl"); if(el && document.activeElement!==el) el.value=u; }
+function brUpdNav(){ $("#brBack").disabled = brIdx<=0; }
+function brNavigate(input, push=true){
+  let url = (input||"").trim();
+  if(!url) return;
+  if(!/^https?:\/\//i.test(url)){
+    if(/^[\w-]+(\.[\w-]+)+(\/.*)?$/.test(url)) url = "https://" + url;
+    else url = "https://duckduckgo.com/html/?q=" + encodeURIComponent(url);
+  }
+  if(push){ brHist = brHist.slice(0, brIdx+1); brHist.push(url); brIdx = brHist.length-1; }
+  brSetBar(url); brUpdNav();
+  $("#brBlank").classList.add("hidden");
+  brFrame().classList.remove("hidden");
+  brFrame().src = brProxy(url);
+}
+function brBack(){
+  if(brIdx>0){ brIdx--; const u=brHist[brIdx]; brSetBar(u); brUpdNav(); brFrame().src=brProxy(u); }
+}
+$("#brGo").onclick = ()=>brNavigate($("#brUrl").value);
+$("#brUrl").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); brNavigate($("#brUrl").value); } });
+$("#brBack").onclick = brBack;
+$("#brReload").onclick = ()=>{ if(brIdx>=0) brFrame().src = brProxy(brHist[brIdx]); };
+function brIsHttp(u){ return typeof u==="string" && /^https?:\/\//i.test(u); }
+$("#brOpen").onclick = ()=>{ if(brIdx>=0 && brIsHttp(brHist[brIdx])) window.open(brHist[brIdx], "_blank", "noopener"); };
+$$("#brChips button").forEach(b=> b.onclick = ()=>brNavigate(b.dataset.url));
+window.addEventListener("message", e=>{
+  if(e.source !== brFrame().contentWindow) return;   // only trust our own proxied frame
+  const d = e && e.data;
+  if(!d || typeof d!=="object") return;
+  const u = d.__proxyNav || d.__proxyLoc;
+  if(!brIsHttp(u)) return;                            // http(s) only — never javascript:/data:
+  if(d.__proxyNav){
+    brHist = brHist.slice(0, brIdx+1); brHist.push(u); brIdx = brHist.length-1;
+    brSetBar(u); brUpdNav();
+  } else {
+    if(brIdx>=0) brHist[brIdx] = u;
+    brSetBar(u);
+  }
+});
 
 /* ===================== Files / Explorer ===================== */
 async function loadFiles(){

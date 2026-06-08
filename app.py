@@ -1,9 +1,13 @@
 import os
+import re
 import json
+import socket
 import select
 import threading
+import ipaddress
 
-from urllib.parse import urlparse
+import requests
+from urllib.parse import urlparse, urljoin
 
 from flask import Flask, request, jsonify, render_template, send_from_directory, send_file, Response, session, redirect, url_for
 from flask_sock import Sock
@@ -175,6 +179,112 @@ def chat():
         return jsonify({"response": response, "model": assistant.model})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ----------------------------- In-app browser (proxy) -----------------------------
+# Lets the workspace render external sites (docs, dashboards) inside an iframe.
+# Sites normally block framing via X-Frame-Options / CSP; we fetch them server-side
+# with a desktop User-Agent and re-serve them from our own origin without those
+# headers. A <base> tag makes the page's own assets load straight from the origin,
+# and an injected script keeps link clicks navigating inside the panel.
+
+BROWSER_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+)
+
+
+def _host_is_private(host: str) -> bool:
+    """True if a hostname resolves to a loopback/private/reserved address (SSRF guard)."""
+    try:
+        for info in socket.getaddrinfo(host, None):
+            ip = ipaddress.ip_address(info[4][0])
+            if (ip.is_private or ip.is_loopback or ip.is_link_local
+                    or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+                return True
+    except Exception:
+        return True  # fail closed if it won't resolve
+    return False
+
+
+def _proxy_inject(html: str, real_url: str, proxy_base: str) -> str:
+    """Strip meta-CSP, add a <base>, and inject in-panel navigation into a page."""
+    html = re.sub(
+        r'<meta[^>]+http-equiv=["\']?content-security-policy["\']?[^>]*>',
+        "", html, flags=re.IGNORECASE)
+    base_attr = real_url.replace('"', "%22")
+    snippet = (
+        f'<base href="{base_attr}">'
+        "<script>(function(){"
+        f"var PX={json.dumps(proxy_base)},CUR={json.dumps(real_url)};"
+        "function px(u){return PX+encodeURIComponent(u);}"
+        "try{window.parent.postMessage({__proxyLoc:CUR},'*');}catch(e){}"
+        "document.addEventListener('click',function(e){"
+        "var a=e.target.closest&&e.target.closest('a');if(!a)return;"
+        "var href=a.getAttribute('href');"
+        "if(!href||href[0]=='#'||/^(javascript|mailto|tel):/i.test(href))return;"
+        "try{var abs=new URL(href,document.baseURI).href;"
+        "if(/^https?:/i.test(abs)){e.preventDefault();"
+        "try{window.parent.postMessage({__proxyNav:abs},'*');}catch(_){}"
+        "window.location.href=px(abs);}}catch(_){}"
+        "},true);"
+        "})();</script>"
+    )
+    m = re.search(r"<head[^>]*>", html, re.IGNORECASE)
+    if m:
+        i = m.end()
+        return html[:i] + snippet + html[i:]
+    return snippet + html
+
+
+def _safe_get(url: str, max_redirects: int = 5):
+    """Fetch a URL, following redirects MANUALLY and re-validating the host on
+    every hop so a redirect chain can't pivot to a private/internal address."""
+    headers = {
+        "User-Agent": BROWSER_UA,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+    }
+    for _ in range(max_redirects + 1):
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https") or not parsed.hostname:
+            return None, ("Invalid URL", 400)
+        if _host_is_private(parsed.hostname):
+            return None, ("Blocked for security (local/private address).", 403)
+        r = requests.get(url, headers=headers, timeout=20, allow_redirects=False)
+        if r.status_code in (301, 302, 303, 307, 308) and r.headers.get("Location"):
+            url = urljoin(url, r.headers["Location"])
+            r.close()
+            continue
+        return r, None
+    return None, ("Too many redirects.", 502)
+
+
+@app.route("/proxy")
+def proxy():
+    raw = (request.args.get("url") or "").strip()
+    if not raw:
+        return "Missing url", 400
+    if not raw.startswith(("http://", "https://")):
+        raw = "https://" + raw
+    try:
+        r, err = _safe_get(raw)
+    except Exception as e:
+        return f"Couldn't load that page: {e}", 502
+    if err:
+        return err[0], err[1]
+
+    ctype = r.headers.get("Content-Type", "")
+    if "text/html" in ctype.lower():
+        proxy_base = request.host_url.rstrip("/") + "/proxy?url="
+        body = _proxy_inject(r.text, r.url, proxy_base)
+        resp = Response(body, status=r.status_code)
+        resp.headers["Content-Type"] = "text/html; charset=utf-8"
+        return resp
+    resp = Response(r.content, status=r.status_code)
+    if ctype:
+        resp.headers["Content-Type"] = ctype
+    return resp
 
 
 # ----------------------------- Builder -----------------------------

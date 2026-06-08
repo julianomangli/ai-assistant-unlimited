@@ -1350,10 +1350,10 @@ function initWelcomeTyping(){
   const el = document.getElementById("wTyped");
   if(!el) return;
   const phrases = [
-    "What should we build?",
-    "Build · Commit · Ship.",
-    "Your private AI dev studio.",
-    "Code it. Push it. Own it.",
+    "What are we building today?",
+    "Ready when you are.",
+    "The more we build, the sharper I get.",
+    "Your private AI. Always on your side.",
   ];
   let pi = 0, ci = 0, deleting = false, pausing = false;
 

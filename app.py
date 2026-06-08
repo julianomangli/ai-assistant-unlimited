@@ -46,6 +46,31 @@ def _is_production() -> bool:
 IS_PROD = _is_production()
 TERMINAL_PASSWORD = os.environ.get("TERMINAL_PASSWORD", "")
 
+# ---- Pre-warm the AI model on startup so the user's first message is fast ----
+def _prewarm_model():
+    """Send a 1-token request to load the model into Ollama memory."""
+    try:
+        for _ in range(120):
+            try:
+                r = requests.get("http://127.0.0.1:11434/api/tags", timeout=2)
+                if r.ok:
+                    break
+            except Exception:
+                pass
+            time.sleep(1)
+        requests.post(
+            "http://127.0.0.1:11434/api/chat",
+            json={"model": DEFAULT_MODEL,
+                  "messages": [{"role": "user", "content": "hi"}],
+                  "stream": False,
+                  "options": {"num_predict": 1}},
+            timeout=120,
+        )
+    except Exception:
+        pass
+
+threading.Thread(target=_prewarm_model, daemon=True).start()
+
 # ---- Model download progress -------------------------------------------------
 # In production the model may not be present yet. We pull it in a background
 # thread and track progress so the frontend can show a live status screen.
@@ -260,8 +285,8 @@ def chat_stream_ep():
 
     def generate():
         try:
-            for chunk in assistant.chat_stream(message):
-                yield f"data: {json.dumps({'t':'c','v':chunk})}\n\n"
+            for event in assistant.chat_stream(message):
+                yield f"data: {json.dumps(event)}\n\n"
         except Exception as exc:
             yield f"data: {json.dumps({'t':'err','v':str(exc)})}\n\n"
         yield "data: {\"t\":\"done\"}\n\n"

@@ -1,27 +1,27 @@
-/* ===================== ARIA — AI-Powered Dev Studio ===================== */
+/* ===================== VIKA — AI-Powered Dev Studio ===================== */
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 
-/* ARIA branded model names — shown in the UI instead of raw Ollama IDs */
-const ARIA_MODEL_NAMES = {
-  'qwen2.5-coder:1.5b': 'ARIA Nano',
-  'qwen2.5-coder:3b':   'ARIA Core',
-  'qwen2.5-coder:7b':   'ARIA Pro',
-  'qwen2.5-coder:14b':  'ARIA Ultra',
-  'qwen2.5-coder:32b':  'ARIA Max',
-  'qwen2.5:3b':         'ARIA Core',
-  'qwen2.5:7b':         'ARIA Pro',
-  'llama3.2:1b':        'ARIA Llama Nano',
-  'llama3.2:3b':        'ARIA Llama 3',
-  'llama3.1:8b':        'ARIA Llama Pro',
-  'mistral:7b':         'ARIA Mistral',
-  'mistral:latest':     'ARIA Mistral',
-  'deepseek-coder:6.7b':'ARIA DeepSeek',
-  'codellama:7b':       'ARIA CodeLlama',
-  'phi3:mini':          'ARIA Phi',
-  'tinyllama:latest':   'ARIA Nano',
+/* VIKA branded model names — shown in the UI instead of raw Ollama IDs */
+const VIKA_MODEL_NAMES = {
+  'qwen2.5-coder:1.5b': 'VIKA Nano',
+  'qwen2.5-coder:3b':   'VIKA Core',
+  'qwen2.5-coder:7b':   'VIKA Pro',
+  'qwen2.5-coder:14b':  'VIKA Ultra',
+  'qwen2.5-coder:32b':  'VIKA Max',
+  'qwen2.5:3b':         'VIKA Core',
+  'qwen2.5:7b':         'VIKA Pro',
+  'llama3.2:1b':        'VIKA Llama Nano',
+  'llama3.2:3b':        'VIKA Llama 3',
+  'llama3.1:8b':        'VIKA Llama Pro',
+  'mistral:7b':         'VIKA Mistral',
+  'mistral:latest':     'VIKA Mistral',
+  'deepseek-coder:6.7b':'VIKA DeepSeek',
+  'codellama:7b':       'VIKA CodeLlama',
+  'phi3:mini':          'VIKA Phi',
+  'tinyllama:latest':   'VIKA Nano',
 };
-function ariaModelName(m){ return m ? (ARIA_MODEL_NAMES[m] || ('ARIA · ' + m)) : 'ARIA'; }
+function ariaModelName(m){ return m ? (VIKA_MODEL_NAMES[m] || ('VIKA · ' + m)) : 'VIKA'; }
 const SESSION = "default";
 const MONACO_VER = "0.50.0";
 const MONACO_BASE = `https://cdn.jsdelivr.net/npm/monaco-editor@${MONACO_VER}/min`;
@@ -96,9 +96,9 @@ function renderMsgNode(role, text){
        })(this)">⎘</button>`
     : '';
   msg.innerHTML = `
-    <div class="avatar ${isAI?'ai':'user'}">${isAI?'A.':'U'}</div>
+    <div class="avatar ${isAI?'ai':'user'}">${isAI?'V.':'U'}</div>
     <div style="flex:1;min-width:0">
-      <div class="role">${isAI?'ARIA':'You'}${copyBtn}</div>
+      <div class="role">${isAI?'VIKA':'You'}${copyBtn}</div>
       <div class="bubble">${bubbleHtml}</div>
     </div>`;
   wrap.appendChild(msg);
@@ -121,8 +121,8 @@ function restoreChat(){
 }
 function addTyping(){
   const wrap = document.createElement("div"); wrap.className="msg-wrap"; wrap.id="typingWrap";
-  wrap.innerHTML = `<div class="msg"><div class="avatar ai">A.</div>
-    <div style="flex:1"><div class="role">ARIA</div>
+  wrap.innerHTML = `<div class="msg"><div class="avatar ai">V.</div>
+    <div style="flex:1"><div class="role">VIKA</div>
     <div class="typing"><span></span><span></span><span></span></div></div></div>`;
   $("#messages").appendChild(wrap); $("#messages").scrollTop = $("#messages").scrollHeight;
 }
@@ -258,7 +258,7 @@ async function runChat(text){
   const wrap = document.createElement("div"); wrap.className="msg-wrap";
   const inner = document.createElement("div"); inner.className="msg";
   const bubble = document.createElement("div"); bubble.className="bubble";
-  inner.innerHTML = `<div class="avatar ai">A.</div><div style="flex:1;min-width:0"><div class="role">ARIA</div></div>`;
+  inner.innerHTML = `<div class="avatar ai">V.</div><div style="flex:1;min-width:0"><div class="role">VIKA</div></div>`;
   const copyBtn = document.createElement("button");
   copyBtn.className="msg-copy-btn"; copyBtn.title="Copy message"; copyBtn.textContent="⎘";
   copyBtn.onclick = ()=>{
@@ -267,12 +267,30 @@ async function runChat(text){
     });
   };
   inner.querySelector(".role").appendChild(copyBtn);
-  inner.querySelector("div[style]").appendChild(bubble);
+  const msgContent = inner.querySelector("div[style]");
+  msgContent.appendChild(bubble);
   wrap.appendChild(inner);
   const w = $("#welcome"); if(w) w.remove();
   $("#messages").appendChild(wrap);
 
   let fullText = "";
+  let stepsEl = null, lastStepEl = null;
+
+  function showStep(msg){
+    if(!stepsEl){
+      stepsEl = document.createElement("div");
+      stepsEl.className="vika-steps";
+      msgContent.insertBefore(stepsEl, bubble);
+    }
+    const el = document.createElement("div");
+    el.className="vs-item vs-active";
+    el.textContent = msg;
+    if(lastStepEl) lastStepEl.classList.replace("vs-active","vs-done");
+    stepsEl.appendChild(el);
+    lastStepEl = el;
+    $("#messages").scrollTop = $("#messages").scrollHeight;
+  }
+
   const reader = r.body.getReader();
   const dec = new TextDecoder();
   let buf = "";
@@ -286,7 +304,10 @@ async function runChat(text){
       for(const line of lines){
         if(!line.startsWith("data: ")) continue;
         let ev; try{ ev = JSON.parse(line.slice(6)); }catch(e){ continue; }
-        if(ev.t==="c"){
+        if(ev.t==="s"){
+          showStep(ev.v);
+        }else if(ev.t==="c"){
+          if(lastStepEl){ lastStepEl.classList.replace("vs-active","vs-done"); lastStepEl=null; }
           fullText += ev.v;
           bubble.innerHTML = renderMarkdown(fullText);
           $("#messages").scrollTop = $("#messages").scrollHeight;
@@ -298,6 +319,9 @@ async function runChat(text){
       }
     }
   }catch(e){ /* stream closed */ }
+
+  // Fade out steps once response is flowing
+  if(stepsEl) setTimeout(()=>stepsEl.classList.add("vs-all-done"), 1200);
 
   // Replace FILE: blocks with action cards
   const blocks = parseFileBlocks(fullText);
@@ -1242,22 +1266,22 @@ async function _checkReady(){
 
     if(d.state === 'waiting'){
       bar.style.width = '4%';
-      title.textContent = 'Getting ARIA ready…';
+      title.textContent = 'Getting VIKA ready…';
       sub.textContent   = 'Starting AI engine…';
       stats.textContent = 'Waiting for Ollama to start';
-      note.textContent  = 'ARIA will be ready automatically — no need to refresh.';
+      note.textContent  = 'VIKA will be ready automatically — no need to refresh.';
     } else if(d.state === 'pulling'){
       const pct = d.percent || 0;
       bar.style.width  = Math.max(pct, 4) + '%';
       bar.style.background = '';
-      title.textContent = pct < 5 ? 'Downloading AI model…' : `Downloading ARIA Pro  ·  ${pct}%`;
+      title.textContent = pct < 5 ? 'Downloading AI model…' : `Downloading VIKA Ultra  ·  ${pct}%`;
       sub.textContent   = d.model ? `Model: ${d.model}` : 'Downloading…';
       const parts = [];
       if(d.downloaded && d.total) parts.push(`${d.downloaded} of ${d.total}`);
       if(d.speed)  parts.push(d.speed);
       if(d.eta)    parts.push(`${_fmtEta(d.eta)} left`);
       stats.textContent = parts.length ? parts.join('   ·   ') : 'Downloading…';
-      note.textContent  = 'This download only happens once — next time ARIA starts instantly.';
+      note.textContent  = 'This download only happens once — next time VIKA starts instantly.';
     } else if(d.state === 'error'){
       bar.style.width      = '100%';
       bar.style.background = '#ff4444';
@@ -1289,7 +1313,7 @@ if(_aaBtn){
   _aaBtn.onclick = ()=>{
     autoApply = !autoApply;
     _aaBtn.classList.toggle("active", autoApply);
-    toast(autoApply ? "Auto-apply ON — ARIA writes files instantly" : "Auto-apply OFF", autoApply?"ok":"");
+    toast(autoApply ? "Auto-apply ON — VIKA writes files instantly" : "Auto-apply OFF", autoApply?"ok":"");
   };
 }
 

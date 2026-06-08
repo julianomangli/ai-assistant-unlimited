@@ -2,6 +2,7 @@ import requests
 import json
 import re
 import time
+import threading
 from datetime import datetime, timezone
 from config import (
     ENABLE_WEB_SEARCH, ENABLE_VERSION_CHECK, BRAVE_API_KEY,
@@ -15,8 +16,31 @@ WEB_SEARCH_TRIGGERS = [
     "weather", "who is", "what is", "when did", "where is", "how does",
     "best way", "recommend", "should i", "compare", "vs", "difference",
     "2024", "2025", "2026", "just released", "announced", "launched",
-    "trending", "popular", "top", "review", "install", "setup", "guide"
+    "trending", "popular", "top", "review", "install", "setup", "guide",
+    "build", "create", "make", "write", "fix", "debug", "explain",
+    "example", "code", "function", "class", "api", "library", "framework"
 ]
+
+# ---- GitHub README knowledge base (fetched once, used as VIKA's context) ----
+_README_CACHE: dict = {"content": ""}
+
+def _fetch_readme_background():
+    urls = [
+        "https://raw.githubusercontent.com/julianomangli/ai-assistant-unlimited/main/README.md",
+        "https://raw.githubusercontent.com/julianomangli/julianomangli/main/README.md",
+    ]
+    parts = []
+    for url in urls:
+        try:
+            resp = requests.get(url, timeout=8)
+            if resp.status_code == 200 and resp.text.strip():
+                parts.append(resp.text[:2500])
+        except Exception:
+            pass
+    if parts:
+        _README_CACHE["content"] = "\n\n---\n\n".join(parts)
+
+threading.Thread(target=_fetch_readme_background, daemon=True).start()
 
 
 def _should_search(message: str) -> bool:
@@ -231,8 +255,8 @@ class AIAssistant:
         self.enable_web_search = enable_web_search if enable_web_search is not None else ENABLE_WEB_SEARCH
         self.conversation_history: list[dict] = []
         self.system_prompt = system_prompt or (
-            "You are ARIA — Adaptive Reasoning & Intelligence Assistant. "
-            "You are the personal AI of the person you're talking to: brilliant, loyal, direct, and completely dedicated to their success. "
+            "You are VIKA — Versatile Intelligent Knowledge Assistant. "
+            "You are the personal AI of MangliJuliano (GitHub: julianomangli): brilliant, loyal, direct, and completely dedicated to his success. "
             "Your defining trait: you grow with every conversation. Each message, each project, each question adds to the context you hold — "
             "so the longer you work together, the sharper, more tailored, and more powerful your responses become. "
             "You have deep mastery over every domain: software engineering, architecture, science, mathematics, business, creative writing, design, law, medicine, finance, philosophy — anything. "
@@ -244,9 +268,9 @@ class AIAssistant:
             "You never say 'I cannot' — you find a way. If something is genuinely impossible, you say so plainly and immediately offer the best available path forward. "
             "When web search results or live data are provided, you weave them seamlessly into your answer — citing specifics, giving real answers, never guessing. "
             "You remember everything in this conversation and actively build on it. You anticipate what the user will need two steps ahead. "
-            "Format responses cleanly: markdown for code and structure, tight prose everywhere else. "
-            "You are not a chatbot. You are ARIA — the most capable, most personal AI the user has ever worked with, "
-            "and you get better every single time they come back.\n\n"
+            "Format responses cleanly: use markdown — headers, bold, code blocks, bullet lists. Write tight, professional prose. Never pad. "
+            "You are not a chatbot. You are VIKA — the most capable, most personal AI MangliJuliano has ever worked with, "
+            "and you get better every single time he comes back.\n\n"
             "FILE EDITING — when the user asks you to create, write, or edit a file in their project, "
             "output the COMPLETE file content using this exact format:\n\n"
             "FILE: path/to/filename.ext\n"
@@ -311,10 +335,33 @@ class AIAssistant:
         return assistant_message
 
     def chat_stream(self, message: str):
-        context = self._build_context(message)
+        """Yields dicts: {"t":"s","v":"step"} for process steps, {"t":"c","v":"chunk"} for text."""
+        context_parts = []
+
+        # Inject GitHub README on the first turn of a new session
+        readme = _README_CACHE.get("content", "")
+        if readme and not self.conversation_history:
+            yield {"t": "s", "v": "📘 Loading knowledge base…"}
+            context_parts.append(f"[VIKA KNOWLEDGE BASE — project & creator context]\n{readme[:3000]}")
+
+        # Web search if triggered
+        do_search = self.enable_web_search and _should_search(message)
+        if do_search:
+            yield {"t": "s", "v": "🔍 Searching the web for current info…"}
+            search_results = web_search(message)
+            if search_results:
+                context_parts.append(format_search_results(search_results))
+                yield {"t": "s", "v": f"📎 Found {len(search_results)} web results"}
+            if ENABLE_VERSION_CHECK:
+                version_results = check_versions(message)
+                if version_results:
+                    context_parts.append(format_version_results(version_results))
+
+        yield {"t": "s", "v": "⚡ Generating response…"}
+
         user_content = message
-        if context:
-            user_content = f"{context}\n\nUser question: {message}"
+        if context_parts:
+            user_content = "\n\n".join(context_parts) + f"\n\nUser question: {message}"
 
         messages = [{"role": "system", "content": self.system_prompt}]
         messages.extend(self.conversation_history)
@@ -329,7 +376,7 @@ class AIAssistant:
                     chunk = data.get("message", {}).get("content", "")
                     if chunk:
                         full_response += chunk
-                        yield chunk
+                        yield {"t": "c", "v": chunk}
                     if data.get("done"):
                         break
                 except json.JSONDecodeError:

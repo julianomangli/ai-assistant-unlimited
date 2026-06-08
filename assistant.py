@@ -246,7 +246,19 @@ class AIAssistant:
             "You remember everything in this conversation and actively build on it. You anticipate what the user will need two steps ahead. "
             "Format responses cleanly: markdown for code and structure, tight prose everywhere else. "
             "You are not a chatbot. You are ARIA — the most capable, most personal AI the user has ever worked with, "
-            "and you get better every single time they come back."
+            "and you get better every single time they come back.\n\n"
+            "FILE EDITING — when the user asks you to create, write, or edit a file in their project, "
+            "output the COMPLETE file content using this exact format:\n\n"
+            "FILE: path/to/filename.ext\n"
+            "```lang\n"
+            "complete file content here\n"
+            "```\n\n"
+            "Rules:\n"
+            "- Always output the COMPLETE file — never partial snippets or '...' placeholders.\n"
+            "- If existing project files are shown, treat them as the live state and work from them exactly.\n"
+            "- Use FILE: only when actually writing/creating files. For explanations or examples, use normal code blocks.\n"
+            "- You may output multiple FILE: blocks in one response.\n"
+            "- After writing files, add one crisp sentence saying what you did."
         )
 
     def _build_context(self, message: str) -> str:
@@ -302,7 +314,6 @@ class AIAssistant:
         context = self._build_context(message)
         user_content = message
         if context:
-            yield context + "\n\n---\n\n"
             user_content = f"{context}\n\nUser question: {message}"
 
         messages = [{"role": "system", "content": self.system_prompt}]

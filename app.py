@@ -242,6 +242,37 @@ def index():
 
 # ----------------------------- Chat -----------------------------
 
+@app.route("/api/chat/stream", methods=["POST"])
+def chat_stream_ep():
+    """Streaming SSE chat — yields chunks as they arrive from Ollama."""
+    data = request.get_json(force=True) or {}
+    message = (data.get("message") or "").strip()
+    if not message:
+        return jsonify({"error": "Empty message"}), 400
+
+    model_name = data.get("model") or DEFAULT_MODEL
+    session_id = data.get("session_id", "default")
+
+    assistant = get_or_create_assistant(session_id, model_name)
+    not_ready = _ensure_ready(assistant, model_name)
+    if not_ready:
+        return jsonify(not_ready[0]), not_ready[1]
+
+    def generate():
+        try:
+            for chunk in assistant.chat_stream(message):
+                yield f"data: {json.dumps({'t':'c','v':chunk})}\n\n"
+        except Exception as exc:
+            yield f"data: {json.dumps({'t':'err','v':str(exc)})}\n\n"
+        yield "data: {\"t\":\"done\"}\n\n"
+
+    return Response(
+        generate(),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 @app.route("/api/chat", methods=["POST"])
 def chat():
     data = request.get_json(force=True)

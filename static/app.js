@@ -84,11 +84,15 @@ function renderMsgNode(role, text){
   const wrap = document.createElement("div"); wrap.className="msg-wrap";
   const isAI = role==="ai";
   const msg = document.createElement("div"); msg.className="msg";
+  const blocks = isAI ? parseFileBlocks(text) : [];
+  const bubbleHtml = isAI
+    ? (blocks.length ? renderWithFileCards(text, blocks) : renderMarkdown(text))
+    : escapeHtml(text).replace(/\n/g,"<br>");
   msg.innerHTML = `
-    <div class="avatar ${isAI?'ai':'user'}">${isAI?'J.':'U'}</div>
+    <div class="avatar ${isAI?'ai':'user'}">${isAI?'A.':'U'}</div>
     <div style="flex:1;min-width:0">
-      <div class="role">${isAI?'J.A.R.V.I.S.':'You'}</div>
-      <div class="bubble">${isAI?renderMarkdown(text):escapeHtml(text).replace(/\n/g,"<br>")}</div>
+      <div class="role">${isAI?'ARIA':'You'}</div>
+      <div class="bubble">${bubbleHtml}</div>
     </div>`;
   wrap.appendChild(msg);
   return wrap;
@@ -110,8 +114,8 @@ function restoreChat(){
 }
 function addTyping(){
   const wrap = document.createElement("div"); wrap.className="msg-wrap"; wrap.id="typingWrap";
-  wrap.innerHTML = `<div class="msg"><div class="avatar ai">J.</div>
-    <div style="flex:1"><div class="role">J.A.R.V.I.S.</div>
+  wrap.innerHTML = `<div class="msg"><div class="avatar ai">A.</div>
+    <div style="flex:1"><div class="role">ARIA</div>
     <div class="typing"><span></span><span></span><span></span></div></div></div>`;
   $("#messages").appendChild(wrap); $("#messages").scrollTop = $("#messages").scrollHeight;
 }
@@ -147,13 +151,152 @@ async function doSend(){
   }catch(err){ removeTyping(); toast(err.message || "Something went wrong"); }
   finally{ busy=false; send.disabled = !input.value.trim(); }
 }
+/* ===================== File-edit cards ===================== */
+const _fileEdits = new Map(); // cardId → {path, content}
+let autoApply = false;
+
+function parseFileBlocks(text){
+  const blocks=[], re=/FILE:\s*([^\n]+)\n```(\w*)\n([\s\S]*?)```/g;
+  let m;
+  while((m=re.exec(text))!==null)
+    blocks.push({raw:m[0], path:m[1].trim(), lang:m[2], content:m[3]});
+  return blocks;
+}
+
+function buildFileCard(cardId, block){
+  _fileEdits.set(cardId, {path:block.path, content:block.content});
+  const lines = block.content.split('\n');
+  const preview = escapeHtml(lines.slice(0,9).join('\n') + (lines.length>9?'\n…':''));
+  return `<div class="file-edit-card" id="${escapeHtml(cardId)}">
+    <div class="fec-header">
+      <span class="fec-icon">📄</span>
+      <code class="fec-path">${escapeHtml(block.path)}</code>
+      <span class="fec-size">${lines.length} lines</span>
+    </div>
+    <pre class="fec-preview"><code>${preview}</code></pre>
+    <div class="fec-actions" id="${escapeHtml(cardId)}_act">
+      <button class="fec-apply" onclick="applyFileEdit('${escapeHtml(cardId)}')">✓ Apply</button>
+      <button class="fec-skip"  onclick="skipFileEdit('${escapeHtml(cardId)}')">✕ Skip</button>
+    </div>
+  </div>`;
+}
+
+function renderWithFileCards(text, blocks){
+  let out = text;
+  const ph = [];
+  blocks.forEach((b,i)=>{
+    const id = `fc_${Date.now()}_${i}`;
+    out = out.replace(b.raw, `\n\n%%FC${i}%%\n\n`);
+    ph.push({i, id, block:b});
+  });
+  let html = renderMarkdown(out);
+  ph.forEach(({i,id,block})=>{
+    const card = buildFileCard(id, block);
+    html = html.replace(new RegExp(`<p>%%FC${i}%%<\\/p>`,'g'), card)
+               .replace(new RegExp(`%%FC${i}%%`,'g'), card);
+  });
+  return html;
+}
+
+async function applyFileEdit(cardId){
+  const edit = _fileEdits.get(cardId);
+  if(!edit) return;
+  const actEl = document.getElementById(cardId+'_act');
+  if(actEl) actEl.innerHTML = '<span class="fec-applying">Applying…</span>';
+  try{
+    const r = await fetch('/api/project/file',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({path:edit.path, content:edit.content})});
+    if(!r.ok) throw new Error('Save failed');
+    const d = await r.json();
+    if(actEl) actEl.innerHTML = '<span class="fec-done">✓ Applied</span>';
+    document.getElementById(cardId)?.classList.add('fec-applied');
+    await loadFiles();
+    openFile(edit.path);
+    if(d.has_preview) reloadPreview();
+    toast('Applied · '+edit.path, 'ok');
+  }catch(e){
+    if(actEl) actEl.innerHTML =
+      `<button class="fec-apply" onclick="applyFileEdit('${escapeHtml(cardId)}')">Retry</button>`+
+      `<button class="fec-skip"  onclick="skipFileEdit('${escapeHtml(cardId)}')">✕ Skip</button>`;
+    toast('Apply failed: '+e.message);
+  }
+}
+
+function skipFileEdit(cardId){
+  const actEl = document.getElementById(cardId+'_act');
+  if(actEl) actEl.innerHTML = '<span class="fec-skipped-txt">Skipped</span>';
+  document.getElementById(cardId)?.classList.add('fec-is-skipped');
+}
+
+/* ===================== Chat (streaming) ===================== */
 async function runChat(text){
-  const r = await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({message:text, model, session_id:SESSION})});
-  const data = await r.json();
+  let r;
+  try{
+    r = await fetch("/api/chat/stream",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({message:text, model, session_id:SESSION})});
+  }catch(e){ removeTyping(); toast("Cannot reach server"); return; }
+
+  if(!r.ok){
+    removeTyping();
+    const d = await r.json().catch(()=>({}));
+    toast(d.error||"Request failed");
+    return;
+  }
+
   removeTyping();
-  if(!r.ok){ toast(data.error||"Request failed"); return; }
-  addMsg("ai", data.response);
+
+  // Build streaming message node
+  const wrap = document.createElement("div"); wrap.className="msg-wrap";
+  const inner = document.createElement("div"); inner.className="msg";
+  const bubble = document.createElement("div"); bubble.className="bubble";
+  inner.innerHTML = `<div class="avatar ai">A.</div><div style="flex:1;min-width:0"><div class="role">ARIA</div></div>`;
+  inner.querySelector("div[style]").appendChild(bubble);
+  wrap.appendChild(inner);
+  const w = $("#welcome"); if(w) w.remove();
+  $("#messages").appendChild(wrap);
+
+  let fullText = "";
+  const reader = r.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+
+  try{
+    outer: while(true){
+      const {done, value} = await reader.read();
+      if(done) break;
+      buf += dec.decode(value,{stream:true});
+      const lines = buf.split("\n"); buf = lines.pop();
+      for(const line of lines){
+        if(!line.startsWith("data: ")) continue;
+        let ev; try{ ev = JSON.parse(line.slice(6)); }catch(e){ continue; }
+        if(ev.t==="c"){
+          fullText += ev.v;
+          bubble.innerHTML = renderMarkdown(fullText);
+          $("#messages").scrollTop = $("#messages").scrollHeight;
+        }else if(ev.t==="err"){
+          toast(ev.v||"AI error"); break outer;
+        }else if(ev.t==="done"){
+          break outer;
+        }
+      }
+    }
+  }catch(e){ /* stream closed */ }
+
+  // Replace FILE: blocks with action cards
+  const blocks = parseFileBlocks(fullText);
+  if(blocks.length){
+    bubble.innerHTML = renderWithFileCards(fullText, blocks);
+    if(autoApply){
+      for(const card of wrap.querySelectorAll('.file-edit-card'))
+        await applyFileEdit(card.id);
+    }
+  }
+
+  transcript.push({role:"ai", text:fullText});
+  saveChat();
+  $("#messages").scrollTop = $("#messages").scrollHeight;
 }
 async function runBuild(text){
   setView("preview");
@@ -1123,6 +1266,16 @@ async function _initReady(){
   }catch(e){
     /* not a production deployment — skip overlay */
   }
+}
+
+/* ===================== Auto-apply toggle ===================== */
+const _aaBtn = $("#autoApplyBtn");
+if(_aaBtn){
+  _aaBtn.onclick = ()=>{
+    autoApply = !autoApply;
+    _aaBtn.classList.toggle("active", autoApply);
+    toast(autoApply ? "Auto-apply ON — ARIA writes files instantly" : "Auto-apply OFF", autoApply?"ok":"");
+  };
 }
 
 /* ===================== Boot ===================== */

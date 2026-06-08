@@ -5,7 +5,7 @@
 set -u
 
 # Bigger model for the 32GB/8CPU VM. Override via DEFAULT_MODEL deployment secret.
-export DEFAULT_MODEL="${DEFAULT_MODEL:-qwen2.5-coder:7b}"
+export DEFAULT_MODEL="${DEFAULT_MODEL:-qwen2.5-coder:14b}"
 export OLLAMA_HOST="127.0.0.1:11434"
 
 # Store models OUTSIDE the project workspace so they survive re-deploys.

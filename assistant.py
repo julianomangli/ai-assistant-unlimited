@@ -254,6 +254,10 @@ class AIAssistant:
         self.model = model or DEFAULT_MODEL
         self.enable_web_search = enable_web_search if enable_web_search is not None else ENABLE_WEB_SEARCH
         self.conversation_history: list[dict] = []
+        # Inject README into system prompt immediately (background thread may have fetched it already)
+        readme = _README_CACHE.get("content", "")
+        readme_block = f"\n\n[VIKA KNOWLEDGE BASE]\n{readme[:1500]}" if readme else ""
+
         self.system_prompt = system_prompt or (
             "You are VIKA — Versatile Intelligent Knowledge Assistant. "
             "You are the personal AI of MangliJuliano (GitHub: julianomangli): brilliant, loyal, direct, and completely dedicated to his success. "
@@ -270,8 +274,9 @@ class AIAssistant:
             "You remember everything in this conversation and actively build on it. You anticipate what the user will need two steps ahead. "
             "Format responses cleanly: use markdown — headers, bold, code blocks, bullet lists. Write tight, professional prose. Never pad. "
             "You are not a chatbot. You are VIKA — the most capable, most personal AI MangliJuliano has ever worked with, "
-            "and you get better every single time he comes back.\n\n"
-            "FILE EDITING — when the user asks you to create, write, or edit a file in their project, "
+            "and you get better every single time he comes back."
+            + readme_block +
+            "\n\nFILE EDITING — when the user asks you to create, write, or edit a file in their project, "
             "output the COMPLETE file content using this exact format:\n\n"
             "FILE: path/to/filename.ext\n"
             "```lang\n"
@@ -338,14 +343,10 @@ class AIAssistant:
         """Yields dicts: {"t":"s","v":"step"} for process steps, {"t":"c","v":"chunk"} for text."""
         context_parts = []
 
-        # Inject GitHub README on the first turn of a new session
-        readme = _README_CACHE.get("content", "")
-        if readme and not self.conversation_history:
-            yield {"t": "s", "v": "📘 Loading knowledge base…"}
-            context_parts.append(f"[VIKA KNOWLEDGE BASE — project & creator context]\n{readme[:3000]}")
-
-        # Web search if triggered
-        do_search = self.enable_web_search and _should_search(message)
+        # Only search for substantive messages (skip greetings/very short messages)
+        do_search = (len(message) > 12 and
+                     self.enable_web_search and
+                     _should_search(message))
         if do_search:
             yield {"t": "s", "v": "🔍 Searching the web for current info…"}
             search_results = web_search(message)

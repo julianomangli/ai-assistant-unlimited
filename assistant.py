@@ -39,6 +39,12 @@ def _fetch_readme_background():
             pass
     if parts:
         _README_CACHE["content"] = "\n\n---\n\n".join(parts)
+        # Pre-build knowledge cache from README so common questions are instant
+        try:
+            import knowledge
+            knowledge.prebuild_from_readme(_README_CACHE["content"])
+        except Exception:
+            pass
 
 threading.Thread(target=_fetch_readme_background, daemon=True).start()
 
@@ -341,9 +347,34 @@ class AIAssistant:
 
     def chat_stream(self, message: str):
         """Yields dicts: {"t":"s","v":"step"} for process steps, {"t":"c","v":"chunk"} for text."""
+        import knowledge
+
+        # ── Tier 1: Instant responses (greetings / acks) — no AI at all ─────
+        instant = knowledge.get_instant(message)
+        if instant is not None:
+            yield {"t": "c", "v": instant}
+            self.conversation_history.append({"role": "user",      "content": message})
+            self.conversation_history.append({"role": "assistant", "content": instant})
+            return
+
+        # ── Tier 2: Knowledge cache — exact match, returned instantly ─────────
+        # Only use cache for standalone questions (not mid-conversation follow-ups)
+        msg_short = len(message) <= 120
+        if msg_short and not self.conversation_history:
+            cached = knowledge.get(message)
+            if cached:
+                yield {"t": "s", "v": "⚡ Found in knowledge base — instant answer"}
+                # Stream in small chunks for a natural feel
+                for i in range(0, len(cached), 80):
+                    yield {"t": "c", "v": cached[i:i+80]}
+                self.conversation_history.append({"role": "user",      "content": message})
+                self.conversation_history.append({"role": "assistant", "content": cached})
+                return
+
+        # ── Tier 3: Full AI response ──────────────────────────────────────────
         context_parts = []
 
-        # Only search for substantive messages (skip greetings/very short messages)
+        # Only search for substantive messages (>12 chars skips greetings)
         do_search = (len(message) > 12 and
                      self.enable_web_search and
                      _should_search(message))
@@ -383,8 +414,12 @@ class AIAssistant:
                 except json.JSONDecodeError:
                     pass
 
-        self.conversation_history.append({"role": "user", "content": message})
+        self.conversation_history.append({"role": "user",      "content": message})
         self.conversation_history.append({"role": "assistant", "content": full_response})
+
+        # Cache this answer so next time it's instant
+        if full_response and msg_short and not context_parts:
+            knowledge.put(message, full_response)
 
     def clear_history(self):
         self.conversation_history = []

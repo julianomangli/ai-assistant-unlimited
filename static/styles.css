@@ -455,6 +455,16 @@ textarea#input::placeholder{color:var(--text-3)}
 .fec-done{font-size:12px;color:var(--accent);font-weight:600}
 .fec-applying{font-size:12px;color:var(--text-3);font-style:italic}
 .fec-skipped-txt{font-size:12px;color:var(--text-3);opacity:.6}
+/* ---- Message copy button ---- */
+.msg-copy-btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  margin-left:8px;width:22px;height:22px;border-radius:5px;
+  background:transparent;border:1px solid transparent;
+  color:var(--text-3);font-size:13px;cursor:pointer;
+  vertical-align:middle;opacity:0;transition:opacity .15s,border-color .15s,color .15s;
+}
+.msg-wrap:hover .msg-copy-btn{opacity:1}
+.msg-copy-btn:hover{border-color:var(--border);color:var(--text)}
 /* ---- Auto-apply toggle ---- */
 .aa-btn{display:flex;align-items:center;gap:6px;padding:4px 11px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-3);font-size:11.5px;cursor:pointer;transition:all .15s;white-space:nowrap;height:28px}
 .aa-btn.active{background:rgba(0,255,136,.12);border-color:var(--accent);color:var(--accent)}

@@ -88,10 +88,17 @@ function renderMsgNode(role, text){
   const bubbleHtml = isAI
     ? (blocks.length ? renderWithFileCards(text, blocks) : renderMarkdown(text))
     : escapeHtml(text).replace(/\n/g,"<br>");
+  const copyBtn = isAI
+    ? `<button class="msg-copy-btn" title="Copy message" onclick="(function(b){
+         navigator.clipboard.writeText(${JSON.stringify(text)}).then(()=>{
+           b.textContent='✓'; setTimeout(()=>b.textContent='⎘',1500);
+         });
+       })(this)">⎘</button>`
+    : '';
   msg.innerHTML = `
     <div class="avatar ${isAI?'ai':'user'}">${isAI?'A.':'U'}</div>
     <div style="flex:1;min-width:0">
-      <div class="role">${isAI?'ARIA':'You'}</div>
+      <div class="role">${isAI?'ARIA':'You'}${copyBtn}</div>
       <div class="bubble">${bubbleHtml}</div>
     </div>`;
   wrap.appendChild(msg);
@@ -252,6 +259,14 @@ async function runChat(text){
   const inner = document.createElement("div"); inner.className="msg";
   const bubble = document.createElement("div"); bubble.className="bubble";
   inner.innerHTML = `<div class="avatar ai">A.</div><div style="flex:1;min-width:0"><div class="role">ARIA</div></div>`;
+  const copyBtn = document.createElement("button");
+  copyBtn.className="msg-copy-btn"; copyBtn.title="Copy message"; copyBtn.textContent="⎘";
+  copyBtn.onclick = ()=>{
+    navigator.clipboard.writeText(fullText).then(()=>{
+      copyBtn.textContent="✓"; setTimeout(()=>copyBtn.textContent="⎘",1500);
+    });
+  };
+  inner.querySelector(".role").appendChild(copyBtn);
   inner.querySelector("div[style]").appendChild(bubble);
   wrap.appendChild(inner);
   const w = $("#welcome"); if(w) w.remove();

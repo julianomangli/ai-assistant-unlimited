@@ -357,3 +357,41 @@ textarea#input::placeholder{color:var(--text-3)}
 
 /* Footer */
 .guide-footer{text-align:center;font-size:12px;color:var(--text-3);padding-top:24px;border-top:1px solid var(--border);margin-top:8px}
+
+/* ===================== GitHub Push panel ===================== */
+.gh-panel{padding:14px 12px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;flex:1}
+.gh-intro p{font-size:12.5px;color:var(--text-2);line-height:1.6;margin-bottom:8px}
+.gh-ext-link{display:block;font-size:12.5px;color:var(--accent-2);font-weight:600;margin:4px 0 8px;text-decoration:none}
+.gh-ext-link:hover{text-decoration:underline}
+.gh-token-hint{font-size:11.5px;color:var(--text-3)!important}
+.gh-label{font-size:11.5px;font-weight:600;color:var(--text-3);letter-spacing:.4px;display:flex;align-items:center;gap:5px}
+.gh-hint-inline{font-weight:400;color:var(--text-3)}
+.gh-input{width:100%;background:var(--panel-2);border:1px solid var(--border-2);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--text);font-family:'JetBrains Mono',monospace;outline:none;margin-top:4px}
+.gh-input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(99,102,241,.18)}
+.gh-textarea{width:100%;background:var(--panel-2);border:1px solid var(--border-2);border-radius:8px;padding:9px 11px;font-size:12.5px;color:var(--text);font-family:'JetBrains Mono',monospace;outline:none;resize:vertical;min-height:68px;margin-top:4px}
+.gh-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(99,102,241,.18)}
+.gh-btn-primary{width:100%;padding:10px;background:var(--accent);color:#fff;border-radius:9px;font-size:13px;font-weight:600;margin-top:4px}
+.gh-btn-primary:hover{opacity:.88}
+.gh-btn-primary:disabled{opacity:.45;cursor:not-allowed}
+.gh-btn-secondary{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;padding:9px;background:var(--panel-2);border:1px solid var(--border-2);border-radius:9px;font-size:12.5px;font-weight:600;color:var(--text-2);margin-top:2px}
+.gh-btn-secondary svg{width:14px;height:14px;color:var(--accent-2)}
+.gh-btn-secondary:hover{border-color:var(--accent);color:var(--text)}
+.gh-btn-secondary:disabled{opacity:.45;cursor:not-allowed}
+.gh-btn-push{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-radius:10px;font-size:13.5px;font-weight:700;margin-top:4px;box-shadow:0 4px 14px rgba(99,102,241,.35)}
+.gh-btn-push svg{width:16px;height:16px}
+.gh-btn-push:hover{opacity:.88;box-shadow:0 6px 18px rgba(99,102,241,.5)}
+.gh-btn-push:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+.gh-status-bar{display:flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--border);border-radius:9px;padding:9px 11px}
+.gh-dot-green{width:9px;height:9px;border-radius:50%;background:#22c55e;flex-shrink:0;box-shadow:0 0 6px #22c55e88}
+.gh-username{font-size:12.5px;font-weight:600;color:var(--text);flex:1}
+.gh-link-btn{font-size:11.5px;color:var(--text-3);padding:2px 6px;border-radius:5px}
+.gh-link-btn:hover{color:var(--text);background:var(--border)}
+.gh-divider{height:1px;background:var(--border);margin:4px 0}
+.gh-badge{font-size:12px;color:var(--text-3);padding:7px 10px;background:var(--panel-2);border-radius:7px;text-align:center}
+.gh-badge.has-files{color:var(--accent-2);background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.18)}
+.gh-log{font-size:11.5px;font-family:'JetBrains Mono',monospace;line-height:1.7;color:var(--text-2);padding:10px;background:var(--panel-2);border-radius:8px;display:none;white-space:pre-wrap;word-break:break-word;max-height:180px;overflow-y:auto}
+.gh-log.visible{display:block}
+.gh-log .log-ok{color:#22c55e}
+.gh-log .log-err{color:#f87171}
+.gh-log .log-link{color:var(--accent-2);text-decoration:underline}
+.gh-err{font-size:12px;color:#f87171;margin-top:6px;min-height:0}

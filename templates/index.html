@@ -101,6 +101,9 @@
         <button class="act" id="termToggleAct" title="Terminal (Ctrl+`)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
         </button>
+        <button class="act" data-view="github" title="Push to GitHub">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+        </button>
         <div class="act-spacer"></div>
         <button class="act" data-view="settings" title="Settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -257,6 +260,64 @@
               <b>Ctrl+/</b> comment · <b>Ctrl+B</b> sidebar · <b>Ctrl+`</b> terminal.
               <button class="set-link" id="openShortcutsLink">See all keyboard shortcuts →</button>
             </div>
+          </div>
+        </div>
+        <!-- GitHub Push panel -->
+        <div class="side-view hidden" id="githubView" data-view="github">
+          <div class="side-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+            GitHub Push
+          </div>
+          <div class="gh-panel">
+
+            <!-- NOT CONNECTED -->
+            <div id="ghConnect">
+              <div class="gh-intro">
+                <p>Push your built project directly to GitHub with one click. The AI writes the commit message.</p>
+                <p>You need a <strong>Personal Access Token</strong> — it's stored only in your browser, never on any server.</p>
+                <a class="gh-ext-link" href="https://github.com/settings/tokens/new?scopes=repo&description=AI+Assistant+Unlimited" target="_blank" rel="noopener">
+                  Create a token on GitHub →
+                </a>
+                <p class="gh-token-hint">On that page: check <strong>repo</strong> scope → click <em>Generate token</em> → copy it here.</p>
+              </div>
+              <label class="gh-label">Personal Access Token</label>
+              <input type="password" id="ghToken" class="gh-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+              <button class="gh-btn-primary" id="ghConnectBtn">Connect to GitHub</button>
+              <div class="gh-err" id="ghConnectErr"></div>
+            </div>
+
+            <!-- CONNECTED -->
+            <div id="ghConnected" hidden>
+              <div class="gh-status-bar">
+                <span class="gh-dot-green"></span>
+                <span id="ghUser" class="gh-username"></span>
+                <button id="ghDisconnect" class="gh-link-btn">Disconnect</button>
+              </div>
+
+              <label class="gh-label">Repository <span class="gh-hint-inline">(owner/repo)</span></label>
+              <input type="text" id="ghRepo" class="gh-input" placeholder="julianomangli/my-app" autocomplete="off" spellcheck="false">
+
+              <label class="gh-label">Branch</label>
+              <input type="text" id="ghBranch" class="gh-input" value="main" placeholder="main" autocomplete="off" spellcheck="false">
+
+              <div class="gh-divider"></div>
+
+              <div id="ghFileCount" class="gh-badge">No project files yet — build something first</div>
+
+              <button id="ghGenMsg" class="gh-btn-secondary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                Generate smart commit message
+              </button>
+              <textarea id="ghCommitMsg" class="gh-textarea" placeholder="Describe what you built or changed…" rows="3"></textarea>
+
+              <button id="ghPush" class="gh-btn-push" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                Push to GitHub
+              </button>
+
+              <div id="ghLog" class="gh-log"></div>
+            </div>
+
           </div>
         </div>
       </aside>

@@ -445,6 +445,121 @@ def terminal_ws(ws):
         term.terminate(proc, master_fd)
 
 
+@app.route("/api/github/commit-msg", methods=["POST"])
+def github_commit_msg():
+    """Ask the AI to write a smart commit message for the current project."""
+    try:
+        files = builder.list_files()
+        if not files:
+            return jsonify({"error": "No project files yet."}), 400
+        snippets = []
+        for path in files[:12]:
+            try:
+                content = builder.read_file(path)
+                snippets.append(f"- {path}: {content[:180].strip()}")
+            except Exception:
+                snippets.append(f"- {path}")
+        summary = "\n".join(snippets)
+        prompt = (
+            f"Write a concise, professional git commit message (one line, under 72 characters) "
+            f"for a web project containing these files:\n\n{summary}\n\n"
+            "Return ONLY the commit message text. No quotes, no explanation."
+        )
+        msg = assistant.chat(prompt, max_tokens=80)
+        msg = msg.strip().strip('"').strip("'").split("\n")[0].strip()
+        return jsonify({"message": msg})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/github/push", methods=["POST"])
+def github_push():
+    """Push the current project files to a GitHub repository."""
+    import requests as req_lib, base64 as b64
+    data = request.json or {}
+    token      = data.get("token", "").strip()
+    owner_repo = data.get("repo", "").strip()
+    branch     = data.get("branch", "main").strip() or "main"
+    commit_msg = data.get("commit_message", "Update project").strip() or "Update project"
+    if not token:
+        return jsonify({"error": "No token — please connect first."}), 400
+    if not owner_repo or "/" not in owner_repo:
+        return jsonify({"error": "Repo must be owner/repo (e.g. julianomangli/my-app)."}), 400
+    if builder.is_empty():
+        return jsonify({"error": "No project files to push. Build something first!"}), 400
+    owner, repo = owner_repo.split("/", 1)
+    api  = "https://api.github.com"
+    hdrs = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "User-Agent": "AI-Assistant-Unlimited",
+    }
+    def gh(method, url, body=None):
+        r = req_lib.request(method, api + url, headers=hdrs, json=body, timeout=30)
+        r.raise_for_status()
+        return r.json() if r.text else {}
+    try:
+        user = gh("GET", "/user")
+        try:
+            gh("GET", f"/repos/{owner}/{repo}")
+        except req_lib.HTTPError as e:
+            if e.response.status_code == 404:
+                gh("POST", "/user/repos", {
+                    "name": repo, "description": "Built with AI Assistant Unlimited",
+                    "private": False, "auto_init": False,
+                })
+            else:
+                raise
+        parent_sha = None
+        try:
+            ref = gh("GET", f"/repos/{owner}/{repo}/git/ref/heads/{branch}")
+            parent_sha = ref["object"]["sha"]
+        except req_lib.HTTPError:
+            pass
+        files = builder.list_files()
+        tree_items = []
+        for path in files:
+            full = os.path.join(builder.PROJECT_DIR, path)
+            with open(full, "rb") as f:
+                content = f.read()
+            blob = gh("POST", f"/repos/{owner}/{repo}/git/blobs", {
+                "content": b64.b64encode(content).decode(), "encoding": "base64",
+            })
+            tree_items.append({"path": path, "mode": "100644", "type": "blob", "sha": blob["sha"]})
+        tree = gh("POST", f"/repos/{owner}/{repo}/git/trees", {"tree": tree_items})
+        commit_body = {
+            "message": commit_msg,
+            "tree": tree["sha"],
+            "author": {
+                "name":  user.get("name") or user.get("login", owner),
+                "email": user.get("email") or f"{user.get('login', owner)}@users.noreply.github.com",
+            },
+        }
+        if parent_sha:
+            commit_body["parents"] = [parent_sha]
+        commit = gh("POST", f"/repos/{owner}/{repo}/git/commits", commit_body)
+        try:
+            gh("PATCH", f"/repos/{owner}/{repo}/git/refs/heads/{branch}", {"sha": commit["sha"]})
+        except req_lib.HTTPError:
+            gh("POST", f"/repos/{owner}/{repo}/git/refs",
+               {"ref": f"refs/heads/{branch}", "sha": commit["sha"]})
+        return jsonify({
+            "sha": commit["sha"][:7],
+            "url": f"https://github.com/{owner}/{repo}/commit/{commit['sha']}",
+            "repo_url": f"https://github.com/{owner}/{repo}",
+            "files": len(tree_items),
+            "user": user.get("login", owner),
+        })
+    except req_lib.HTTPError as e:
+        msg = str(e)
+        try: msg = e.response.json().get("message", msg)
+        except Exception: pass
+        return jsonify({"error": msg}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     print("🤖 AI Assistant Unlimited")
     print(f"   Model: {DEFAULT_MODEL}")

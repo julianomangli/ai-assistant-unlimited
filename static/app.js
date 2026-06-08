@@ -161,6 +161,8 @@ function setView(view){
   if(!isPreview){
     $("#explorerView").classList.toggle("hidden", view!=="explorer");
     $("#settingsView").classList.toggle("hidden", view!=="settings");
+    $("#githubView").classList.toggle("hidden", view!=="github");
+    if(view==="github") ghRefreshState();
     if(window.__editor) window.__editor.layout();
   }
   if(isPreview) reloadPreview();
@@ -1000,3 +1002,156 @@ document.getElementById("guideOverlay").addEventListener("mousedown", e=>{ if(e.
 window.addEventListener("keydown", e=>{
   if(e.key==="Escape" && !document.getElementById("guideOverlay").hidden){ closeGuide(); }
 }, true);
+
+/* ===================== GitHub Push panel ===================== */
+const GH_KEY = "gh_token_v1";
+const GH_REPO_KEY = "gh_repo_v1";
+const GH_BRANCH_KEY = "gh_branch_v1";
+
+function ghLog(msg, type=""){
+  const el=$("#ghLog"); el.classList.add("visible");
+  const line=document.createElement("div");
+  if(type) line.className="log-"+type;
+  line.textContent=msg;
+  el.appendChild(line);
+  el.scrollTop=el.scrollHeight;
+}
+function ghLogLink(text, url){
+  const el=$("#ghLog"); el.classList.add("visible");
+  const a=document.createElement("a");
+  a.className="log-link"; a.textContent=text; a.href=url; a.target="_blank"; a.rel="noopener";
+  el.appendChild(a); el.appendChild(document.createTextNode("\n"));
+  el.scrollTop=el.scrollHeight;
+}
+function ghClearLog(){ const el=$("#ghLog"); el.innerHTML=""; el.classList.remove("visible"); }
+
+function ghRefreshState(){
+  const token = localStorage.getItem(GH_KEY);
+  if(token){
+    $("#ghConnect").hidden=true;
+    $("#ghConnected").hidden=false;
+    const user = localStorage.getItem("gh_user_v1") || "Connected";
+    $("#ghUser").textContent=user;
+    const repo = localStorage.getItem(GH_REPO_KEY)||"";
+    const branch = localStorage.getItem(GH_BRANCH_KEY)||"main";
+    if(repo) $("#ghRepo").value=repo;
+    $("#ghBranch").value=branch;
+    ghRefreshFiles();
+  } else {
+    $("#ghConnect").hidden=false;
+    $("#ghConnected").hidden=true;
+  }
+}
+
+function ghRefreshFiles(){
+  const count = fileCache.length;
+  const badge = $("#ghFileCount");
+  if(count===0){ badge.textContent="No project files yet — build something first"; badge.classList.remove("has-files"); }
+  else { badge.textContent=count+" file"+(count===1?"":"s")+" ready to push"; badge.classList.add("has-files"); }
+  $("#ghPush").disabled = count===0 || !$("#ghRepo").value.trim();
+}
+
+// Connect button
+$("#ghConnectBtn").onclick = async ()=>{
+  const token = $("#ghToken").value.trim();
+  if(!token){ $("#ghConnectErr").textContent="Please paste your token."; return; }
+  $("#ghConnectBtn").textContent="Verifying…"; $("#ghConnectBtn").disabled=true; $("#ghConnectErr").textContent="";
+  try{
+    const r = await fetch("https://api.github.com/user", {headers:{"Authorization":"Bearer "+token,"Accept":"application/vnd.github+json"}});
+    if(!r.ok){ const d=await r.json(); throw new Error(d.message||"Token rejected"); }
+    const user = await r.json();
+    localStorage.setItem(GH_KEY, token);
+    localStorage.setItem("gh_user_v1", user.login);
+    // Pre-fill repo with their username
+    const existingRepo = localStorage.getItem(GH_REPO_KEY);
+    if(!existingRepo) localStorage.setItem(GH_REPO_KEY, user.login+"/");
+    ghRefreshState();
+    toast("Connected as "+user.login+" ✓", "ok");
+  } catch(e){
+    $("#ghConnectErr").textContent="Error: "+e.message;
+  } finally {
+    $("#ghConnectBtn").textContent="Connect to GitHub"; $("#ghConnectBtn").disabled=false;
+  }
+};
+
+// Disconnect
+$("#ghDisconnect").onclick = ()=>{
+  localStorage.removeItem(GH_KEY); localStorage.removeItem("gh_user_v1");
+  ghRefreshState(); toast("Disconnected from GitHub");
+};
+
+// Save repo/branch on change
+$("#ghRepo").addEventListener("input", ()=>{
+  localStorage.setItem(GH_REPO_KEY, $("#ghRepo").value);
+  ghRefreshFiles();
+});
+$("#ghBranch").addEventListener("input", ()=>{ localStorage.setItem(GH_BRANCH_KEY, $("#ghBranch").value); });
+
+// Generate commit message with AI
+$("#ghGenMsg").onclick = async ()=>{
+  if(fileCache.length===0){ toast("No project files yet — build something first."); return; }
+  $("#ghGenMsg").disabled=true;
+  const orig = $("#ghGenMsg").innerHTML;
+  $("#ghGenMsg").textContent="Thinking…";
+  try{
+    const r = await fetch("/api/github/commit-msg", {method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+    const d = await r.json();
+    if(d.error) throw new Error(d.error);
+    $("#ghCommitMsg").value = d.message;
+    toast("Commit message ready ✓", "ok");
+  } catch(e){
+    toast("Could not generate: "+e.message);
+  } finally {
+    $("#ghGenMsg").innerHTML=orig; $("#ghGenMsg").disabled=false;
+  }
+};
+
+// Push to GitHub
+$("#ghPush").onclick = async ()=>{
+  const token  = localStorage.getItem(GH_KEY);
+  const repo   = $("#ghRepo").value.trim();
+  const branch = $("#ghBranch").value.trim()||"main";
+  const msg    = $("#ghCommitMsg").value.trim();
+  if(!token){ toast("Please connect to GitHub first."); return; }
+  if(!repo||!repo.includes("/")){ toast("Enter your repo as owner/repo-name."); return; }
+  if(!msg){ toast("Please write or generate a commit message."); return; }
+
+  ghClearLog();
+  $("#ghPush").disabled=true;
+  const origHtml=$("#ghPush").innerHTML;
+  $("#ghPush").innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;animation:spin .8s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Pushing…`;
+
+  ghLog("Connecting to GitHub…");
+  try{
+    const r = await fetch("/api/github/push", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({token, repo, branch, commit_message:msg}),
+    });
+    const d = await r.json();
+    if(d.error) throw new Error(d.error);
+    ghLog("✓ "+d.files+" files pushed", "ok");
+    ghLog("✓ Commit: "+d.sha, "ok");
+    ghLogLink("→ View on GitHub", d.url);
+    ghLog("→ Repo: "+d.repo_url, "ok");
+    toast("Pushed to GitHub ✓", "ok");
+    // Clear commit message so next push needs a fresh one
+    $("#ghCommitMsg").value="";
+  } catch(e){
+    ghLog("✗ "+e.message, "err");
+    toast("Push failed: "+e.message);
+  } finally {
+    $("#ghPush").innerHTML=origHtml;
+    ghRefreshFiles();
+  }
+};
+
+// Add GitHub commands to the command palette
+var allCommands = (function(_orig){
+  const ghCmds = [
+    {t:"GitHub: Open Panel",               h:"", kw:"github open panel push", run:()=>setView("github")},
+    {t:"GitHub: Generate Commit Message",  h:"", kw:"github commit message ai generate smart", run:()=>{ setView("github"); setTimeout(()=>$("#ghGenMsg").click(),300); }},
+    {t:"GitHub: Push to GitHub",           h:"", kw:"github push upload deploy commit", run:()=>{ setView("github"); setTimeout(()=>{ if(!$("#ghPush").disabled) $("#ghPush").click(); else toast("Set a repo and build a project first."); },300); }},
+  ];
+  return function(){ return [..._orig(), ...ghCmds]; };
+})(allCommands);

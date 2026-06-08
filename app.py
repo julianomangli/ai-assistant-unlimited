@@ -5,7 +5,7 @@ import threading
 
 from urllib.parse import urlparse
 
-from flask import Flask, request, jsonify, render_template, send_from_directory, send_file, Response
+from flask import Flask, request, jsonify, render_template, send_from_directory, send_file, Response, session, redirect, url_for
 from flask_sock import Sock
 from assistant import AIAssistant, BUILDER_SYSTEM_PROMPT
 from config import DEFAULT_MODEL, ENABLE_WEB_SEARCH, ENABLE_VERSION_CHECK
@@ -13,6 +13,7 @@ import builder
 import terminal as term
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", os.urandom(24).hex())
 sock = Sock(app)
 
 # --- Terminal access policy ---------------------------------------------------
@@ -45,6 +46,14 @@ def terminal_allowed(pw: str) -> bool:
     if TERMINAL_PASSWORD:
         return pw == TERMINAL_PASSWORD
     return not IS_PROD
+
+# ---- App-level password auth (production only) ------------------------------
+APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
+
+def _login_required():
+    if not APP_PASSWORD or not IS_PROD:
+        return False
+    return not session.get("authed")
 
 
 def _ws_origin_ok() -> bool:
@@ -103,8 +112,38 @@ def _ensure_ready(assistant, model):
     return None
 
 
+@app.before_request
+def require_login():
+    if _login_required():
+        if request.path.startswith("/static/") or request.path == "/login":
+            return None
+        return redirect(url_for("login"))
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if not APP_PASSWORD or not IS_PROD:
+        return redirect(url_for("index"))
+    if session.get("authed"):
+        return redirect(url_for("index"))
+    error = None
+    if request.method == "POST":
+        pw = request.form.get("password", "")
+        if pw == APP_PASSWORD:
+            session["authed"] = True
+            session.permanent = True
+            return redirect(url_for("index"))
+        error = "Wrong password — try again."
+    return render_template("login.html", error=error)
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
 @app.route("/")
 def index():
+    if _login_required():
+        return redirect(url_for("login"))
     return render_template("index.html")
 
 

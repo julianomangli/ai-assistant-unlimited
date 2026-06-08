@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Assistant Unlimited — Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--green:#00ff88;--green-dim:rgba(0,255,136,.6);--green-glow:rgba(0,255,136,.2);--bg:#0d0d16;--panel:rgba(255,255,255,.04);--border:rgba(0,255,136,.18);--text:#e8e8f0;--text-2:rgba(255,255,255,.45);--red:#f87171}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;overflow:hidden}
+
+/* Matrix canvas */
+canvas{position:fixed;inset:0;width:100%;height:100%;opacity:.5;pointer-events:none;z-index:0}
+
+/* Scanlines */
+.scanlines{position:fixed;inset:0;pointer-events:none;z-index:1;background:repeating-linear-gradient(to bottom,transparent,transparent 2px,rgba(0,0,0,.07) 2px,rgba(0,0,0,.07) 4px)}
+
+/* Center card */
+.card{position:relative;z-index:2;width:100%;max-width:380px;margin:auto;padding:36px 32px;background:rgba(13,13,22,.88);border:1px solid var(--border);border-radius:18px;backdrop-filter:blur(18px);box-shadow:0 0 60px rgba(0,255,136,.08),0 24px 64px rgba(0,0,0,.6);animation:cardIn .55s cubic-bezier(.22,.68,0,1.2) both}
+.wrap{height:100%;display:flex;align-items:center;justify-content:center;padding:20px}
+
+@keyframes cardIn{from{opacity:0;transform:translateY(22px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes glow{0%,100%{text-shadow:0 0 10px rgba(0,255,136,.5),0 0 28px rgba(0,255,136,.18)}50%{text-shadow:0 0 18px rgba(0,255,136,.85),0 0 50px rgba(0,255,136,.35)}}
+@keyframes borderPulse{0%,100%{box-shadow:0 0 60px rgba(0,255,136,.08)}50%{box-shadow:0 0 60px rgba(0,255,136,.08),0 0 0 2px rgba(0,255,136,.1),inset 0 0 32px rgba(0,255,136,.03)}}
+@keyframes dotBlink{0%,40%,100%{opacity:1}45%,55%{opacity:0}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* Top bar */
+.topbar{display:flex;align-items:center;gap:8px;margin-bottom:28px;animation:fadeUp .4s .05s both}
+.tb-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 7px var(--green);animation:dotBlink 2.4s ease-in-out infinite;flex-shrink:0}
+.tb-label{font-size:10px;font-weight:700;letter-spacing:1.6px;color:var(--green-dim);text-transform:uppercase}
+
+/* Logo */
+.logo-row{display:flex;align-items:center;gap:0;justify-content:flex-start;margin-bottom:6px;animation:fadeUp .4s .1s both}
+.prompt{font-size:26px;font-weight:700;color:var(--green-dim);line-height:1}
+.logo-title{font-size:26px;font-weight:700;color:var(--text);animation:glow 4s ease-in-out infinite}
+.cursor{color:var(--green);animation:blink .9s step-end infinite;text-shadow:0 0 10px var(--green)}
+
+/* Subtitle */
+.subtitle{font-size:11.5px;color:var(--text-2);margin-bottom:28px;letter-spacing:.3px;animation:fadeUp .4s .15s both}
+
+/* Form */
+form{animation:fadeUp .4s .2s both}
+.field-label{font-size:10.5px;font-weight:700;letter-spacing:.8px;color:var(--green-dim);text-transform:uppercase;margin-bottom:7px;display:block}
+.input-wrap{position:relative;margin-bottom:18px}
+.input-wrap input{width:100%;background:rgba(0,255,136,.04);border:1px solid var(--border);border-radius:10px;padding:12px 14px 12px 40px;font-size:14px;font-family:'JetBrains Mono',monospace;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s;-webkit-text-security:disc}
+.input-wrap input:focus{border-color:var(--green-dim);box-shadow:0 0 0 3px rgba(0,255,136,.1)}
+.input-wrap input::placeholder{color:rgba(255,255,255,.2)}
+.input-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--green-dim);width:16px;height:16px;pointer-events:none}
+.toggle-pw{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:rgba(255,255,255,.3);padding:2px;line-height:0;transition:color .15s}
+.toggle-pw:hover{color:var(--green-dim)}
+
+/* Error */
+.err{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--red);background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:8px;padding:9px 12px;margin-bottom:16px;animation:shake .35s ease}
+
+/* Submit btn */
+.btn{width:100%;padding:13px;background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.35);border-radius:10px;font-size:14px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--green);cursor:pointer;transition:all .2s;letter-spacing:.5px;text-shadow:0 0 8px rgba(0,255,136,.4);position:relative;overflow:hidden}
+.btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,255,136,.06),transparent);pointer-events:none}
+.btn:hover{background:rgba(0,255,136,.18);border-color:var(--green);box-shadow:0 0 20px rgba(0,255,136,.25);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+
+/* Footer */
+.footer{margin-top:22px;font-size:10.5px;color:rgba(255,255,255,.2);text-align:center;letter-spacing:.3px;animation:fadeUp .4s .3s both}
+.footer span{color:rgba(0,255,136,.4)}
+</style>
+</head>
+<body>
+<canvas id="mc"></canvas>
+<div class="scanlines"></div>
+<div class="wrap">
+  <div class="card">
+    <div class="topbar">
+      <span class="tb-dot"></span>
+      <span class="tb-label">Secure Access · Private Instance</span>
+    </div>
+
+    <div class="logo-row">
+      <span class="prompt">&gt;_&nbsp;</span>
+      <span class="logo-title">Login</span><span class="cursor">▋</span>
+    </div>
+    <p class="subtitle">Your personal AI dev studio — enter password to continue</p>
+
+    {% if error %}
+    <div class="err">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST">
+      <label class="field-label" for="pw">Password</label>
+      <div class="input-wrap">
+        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <input type="password" id="pw" name="password" placeholder="Enter your password" autofocus autocomplete="current-password">
+        <button type="button" class="toggle-pw" id="togglePw" title="Show/hide password">
+          <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+      <button type="submit" class="btn">→ &nbsp;Enter</button>
+    </form>
+
+    <div class="footer"><span>AI Assistant Unlimited</span> · local · private · yours</div>
+  </div>
+</div>
+
+<script>
+/* Matrix rain */
+const canvas = document.getElementById("mc");
+const ctx = canvas.getContext("2d");
+const chars = "01アイウエオカキクケコ<>{}[]()=+-*/&|#!;:,.?ABCDEFabcdef";
+let cols, drops;
+function resize(){
+  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+  cols=Math.floor(canvas.width/13);
+  drops=Array.from({length:cols},()=>Math.random()*-60);
+}
+resize(); window.addEventListener("resize",resize);
+setInterval(()=>{
+  ctx.fillStyle="rgba(13,13,22,0.07)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.font="11px 'JetBrains Mono',monospace";
+  for(let i=0;i<cols;i++){
+    const ch=chars[Math.floor(Math.random()*chars.length)];
+    const x=i*13, y=drops[i]*13;
+    if(y>0&&y<canvas.height){
+      ctx.fillStyle=`rgba(180,255,220,${drops[i]>0?.85:.0})`;
+      ctx.fillText(ch,x,y);
+      const ty=y-13;
+      if(ty>0){ctx.fillStyle=`rgba(0,255,136,${.04+Math.random()*.1})`;ctx.fillText(chars[Math.floor(Math.random()*chars.length)],x,ty);}
+    }
+    if(drops[i]*13>canvas.height&&Math.random()>.975) drops[i]=0;
+    drops[i]+=0.4;
+  }
+},55);
+
+/* Toggle password visibility */
+const pwInput=document.getElementById("pw");
+const eyeIcon=document.getElementById("eyeIcon");
+document.getElementById("togglePw").onclick=()=>{
+  const show=pwInput.type==="password";
+  pwInput.type=show?"text":"password";
+  eyeIcon.innerHTML=show
+    ?'<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+    :'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+};
+</script>
+</body>
+</html>

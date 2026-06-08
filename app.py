@@ -198,15 +198,35 @@ def build():
         return jsonify(not_ready[0]), not_ready[1]
 
     try:
-        raw = assistant.chat(message, max_tokens=BUILD_MAX_TOKENS)
+        context = builder.project_context()
+        prompt = message
+        if context:
+            prompt = f"{context}\n\nUser request: {message}"
+        raw = assistant.chat(prompt, max_tokens=BUILD_MAX_TOKENS)
+
         files = builder.parse_files(raw)
         if files:
             builder.write_files(files)
+
+        deletes = builder.parse_deletes(raw)
+        # Never delete index.html unless a fresh one is written in the same turn —
+        # keeps the live preview from silently disappearing.
+        if "index.html" in deletes and "index.html" not in files:
+            deletes = [d for d in deletes if d != "index.html"]
+        deleted = [p for p in deletes if builder.delete_file(p)]
+
+        # The live project files are re-sent every turn via project_context(), so the
+        # accumulated chat history (full of old FILE blocks) is redundant — cap it to
+        # keep the model's context window from overflowing across many edits.
+        if len(assistant.conversation_history) > 6:
+            assistant.conversation_history = assistant.conversation_history[-6:]
+
         explanation = builder.strip_code(raw) or "Updated your project."
         return jsonify({
             "response": explanation,
             "files": builder.list_files(),
             "wrote": list(files.keys()),
+            "deleted": deleted,
             "has_preview": builder.has_index(),
             "model": assistant.model,
         })

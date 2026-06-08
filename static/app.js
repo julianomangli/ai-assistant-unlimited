@@ -142,7 +142,8 @@ async function runBuild(text){
   removeTyping();
   if(!r.ok){ toast(data.error||"Build failed"); return; }
   const wrote = data.wrote && data.wrote.length ? `\n\n**Updated:** ${data.wrote.join(", ")}` : "";
-  addMsg("ai", data.response + wrote);
+  const removed = data.deleted && data.deleted.length ? `\n\n**Deleted:** ${data.deleted.join(", ")}` : "";
+  addMsg("ai", data.response + wrote + removed);
   await loadFiles();
   if(data.wrote && data.wrote.length){ openFile(data.wrote.includes("index.html")?"index.html":data.wrote[0]); }
   if(data.has_preview){ setView("preview"); reloadPreview(); }

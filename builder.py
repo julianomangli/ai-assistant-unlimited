@@ -80,12 +80,51 @@ def parse_files(text: str) -> dict:
     return files
 
 
+def parse_deletes(text: str) -> list:
+    """Extract paths the AI wants to remove via 'DELETE: path' lines."""
+    deletes = []
+    for m in re.finditer(r"^[ \t>*-]*DELETE:\s*([^\n`]+?)\s*$", text, re.MULTILINE):
+        raw = m.group(1).replace("\\", "/").strip().strip("`").strip()
+        # Reject junk/traversal-only paths so they can't be coerced into a real filename.
+        if not raw or all(c in "./" for c in raw):
+            continue
+        safe = sanitize_path(raw)
+        if safe and safe not in deletes:
+            deletes.append(safe)
+    return deletes
+
+
 def strip_code(text: str) -> str:
-    """Remove FILE blocks / code fences, leaving the prose explanation."""
+    """Remove FILE blocks / code fences / DELETE lines, leaving the prose explanation."""
     text = re.sub(r"FILE:\s*[^\n`]+?\s*\n```[^\n]*\n.*?```", "", text, flags=re.DOTALL)
     text = re.sub(r"```\w*\n.*?```", "", text, flags=re.DOTALL)
+    text = re.sub(r"^[ \t>*-]*DELETE:\s*[^\n`]+?\s*$", "", text, flags=re.MULTILINE)
     cleaned = "\n".join(line for line in text.splitlines() if line.strip())
     return cleaned.strip()
+
+
+def project_context(max_chars: int = 12000) -> str:
+    """Build a snapshot of the current project (file list + contents) for the AI.
+
+    Returns an empty string when the project is empty. Large files are truncated
+    so the prompt stays within a sane size.
+    """
+    files = list_files()
+    if not files:
+        return ""
+    parts = ["CURRENT PROJECT FILES (these already exist — edit or delete them as needed):", ""]
+    budget = max_chars
+    for path in files:
+        content = read_file(path) or ""
+        if len(content) > budget:
+            content = content[:budget] + "\n... [truncated] ..."
+        block = f"FILE: {path}\n```\n{content}\n```\n"
+        parts.append(block)
+        budget -= len(block)
+        if budget <= 0:
+            parts.append("... [remaining files omitted to save space] ...")
+            break
+    return "\n".join(parts)
 
 
 def write_files(files: dict) -> list:

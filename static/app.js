@@ -1236,3 +1236,117 @@ var allCommands = (function(_orig){
   ];
   return function(){ return [..._orig(), ...ghCmds]; };
 })(allCommands);
+
+/* ===================== Welcome screen — matrix, typing, GitHub state ===================== */
+
+function initWelcome(){
+  if(!document.getElementById("welcome")) return;
+  initMatrixRain();
+  initWelcomeTyping();
+  initWelcomeGhState();
+}
+
+/* Matrix rain canvas */
+function initMatrixRain(){
+  const canvas = document.getElementById("matrixCanvas");
+  if(!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const chars = "01アイウエオカキクケコ<>{}[]()=+-*/&|^#@!;:,.?ABCDEFabcdef0123456789";
+  let cols, drops;
+
+  function resize(){
+    canvas.width  = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    cols  = Math.floor(canvas.width / 13);
+    drops = Array.from({length: cols}, () => Math.random() * -60);
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  function draw(){
+    ctx.fillStyle = "rgba(13,13,22,0.06)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.font = "11px 'JetBrains Mono', monospace";
+    for(let i = 0; i < cols; i++){
+      const char = chars[Math.floor(Math.random() * chars.length)];
+      const x = i * 13;
+      const y = drops[i] * 13;
+      const headBrightness = drops[i] > 0 && y < canvas.height ? 0.9 : 0;
+      // Bright head
+      if(headBrightness > 0){
+        ctx.fillStyle = `rgba(180,255,220,${headBrightness})`;
+        ctx.fillText(char, x, y);
+      }
+      // Dim trail char
+      const trailY = y - 13;
+      if(trailY > 0 && trailY < canvas.height){
+        const alpha = 0.05 + Math.random() * 0.12;
+        ctx.fillStyle = `rgba(0,255,136,${alpha})`;
+        ctx.fillText(chars[Math.floor(Math.random() * chars.length)], x, trailY);
+      }
+      if(drops[i] * 13 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+      drops[i] += 0.4;
+    }
+  }
+
+  // Stop when welcome is removed from DOM
+  const tid = setInterval(() => {
+    if(!document.getElementById("matrixCanvas")){ clearInterval(tid); return; }
+    draw();
+  }, 55);
+}
+
+/* Typewriter with rotating phrases */
+function initWelcomeTyping(){
+  const el = document.getElementById("wTyped");
+  if(!el) return;
+  const phrases = [
+    "What should we build?",
+    "Build · Commit · Ship.",
+    "Your private AI dev studio.",
+    "Code it. Push it. Own it.",
+  ];
+  let pi = 0, ci = 0, deleting = false, pausing = false;
+
+  function tick(){
+    if(!document.getElementById("wTyped")){ return; }
+    const phrase = phrases[pi];
+    if(pausing){ pausing = false; setTimeout(tick, 60); return; }
+    if(!deleting){
+      ci++;
+      el.textContent = phrase.slice(0, ci);
+      if(ci >= phrase.length){ deleting = true; setTimeout(tick, 2200); return; }
+      setTimeout(tick, 68 + Math.random() * 32);
+    } else {
+      ci--;
+      el.textContent = phrase.slice(0, ci);
+      if(ci <= 0){ deleting = false; pi = (pi + 1) % phrases.length; setTimeout(tick, 400); return; }
+      setTimeout(tick, 32 + Math.random() * 16);
+    }
+  }
+  setTimeout(tick, 320);
+}
+
+/* Show GitHub connected/disconnected state in welcome card */
+function initWelcomeGhState(){
+  const notConn = document.getElementById("wGhNotConn");
+  const conn    = document.getElementById("wGhConn");
+  const userEl  = document.getElementById("wGhUser2");
+  if(!notConn || !conn) return;
+  const token = localStorage.getItem("gh_token_v1");
+  const user  = localStorage.getItem("gh_user_v1");
+  if(token && user){
+    notConn.hidden = true;
+    conn.hidden    = false;
+    if(userEl) userEl.textContent = "@" + user;
+    // Swap card to green pulse animation
+    const card = document.getElementById("wGhCard");
+    if(card) card.style.animation = "borderPulseOk 3s ease-in-out infinite, cardEntrance .65s .2s both";
+  } else {
+    notConn.hidden = false;
+    conn.hidden    = true;
+  }
+}
+
+// Boot welcome animations
+initWelcome();

@@ -1,12 +1,12 @@
 <div align="center">
 
-# 🤖 AI Assistant Unlimited
+# ✦ VIKA — AI-Powered Dev Studio
 
-### A free, private, local AI assistant with a built-in app builder.
+### Free · Private · Runs 100% on your own machine
 
 Chat with a local AI, **describe an app in plain English**, watch it build in a
 **live preview**, edit the files, and **download it as a ZIP** — all running on your
-own machine with no external accounts required.
+device with no accounts, no cloud, no fees.
 
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-web%20app-000000?logo=flask&logoColor=white)
@@ -20,81 +20,131 @@ own machine with no external accounts required.
 
 ---
 
-## ✨ Features
+## 🚀 Run on your own machine — three ways
 
-- 💬 **Chat mode** — ask coding questions, get explanations and debugging help.
-- 🔨 **Build mode** — describe an app and the AI writes the code for you.
-- 👁️ **Live preview** — see your generated app render instantly in a browser pane.
-- 📂 **Project workspace** — browse and edit every generated file in a built-in editor.
-- 📦 **One-click ZIP** — download your whole project as a folder to keep or run anywhere.
-- 🌐 **Real-time web search** — optional DuckDuckGo/Brave lookups for current info.
-- 🔒 **100% private & local** — the AI runs on your machine; chats aren't sent to third parties.
-- 💸 **Free to run** — no API keys, no per-message fees (runs on open models via Ollama).
+Pick whichever fits. **No accounts required for any of them.**
 
 ---
 
-## 🚀 Quick Start
+### Option A — One command with Docker (easiest, works on any OS)
 
-### 1. Prerequisites
-- [Python 3.11+](https://www.python.org/)
-- [Ollama](https://ollama.com/) installed and available on your PATH
+> Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) (free).
 
-### 2. Install
 ```bash
-git clone https://github.com/MangliJuliano/ai-assistant-unlimited.git
+git clone https://github.com/julianomangli/ai-assistant-unlimited.git
+cd ai-assistant-unlimited
+docker compose up
+```
+
+Open **http://localhost:8080** — that's it. Ollama and the AI model download automatically on first run.
+
+**Change the model** — edit `docker-compose.yml` → `DEFAULT_MODEL` (see model table below), then `docker compose up`.
+
+---
+
+### Option B — Automated setup script (no Docker)
+
+**macOS / Linux:**
+```bash
+git clone https://github.com/julianomangli/ai-assistant-unlimited.git
+cd ai-assistant-unlimited
+bash setup.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+git clone https://github.com/julianomangli/ai-assistant-unlimited.git
+cd ai-assistant-unlimited
+.\setup.ps1
+```
+
+The script installs Ollama if you don't have it, pulls the model, installs Python deps, and opens VIKA at **http://localhost:8080**.
+
+---
+
+### Option C — Manual setup (full control)
+
+#### 1. Prerequisites
+- [Python 3.9+](https://www.python.org/)
+- [Ollama](https://ollama.com/) installed
+
+#### 2. Clone & install
+```bash
+git clone https://github.com/julianomangli/ai-assistant-unlimited.git
 cd ai-assistant-unlimited
 pip install -r requirements.txt
 ```
 
-### 3. Pull a model
+#### 3. Pull a model
 ```bash
-# Lightweight, fast (good on ~8GB RAM)
+# Fast, works on 8 GB RAM
+ollama pull qwen2.5-coder:7b
+
+# Lighter, works on 4 GB RAM
 ollama pull qwen2.5-coder:3b
 
-# Smarter, needs more RAM (~16GB+)
-ollama pull qwen2.5-coder:7b
+# Best quality, needs 16 GB+ RAM
+ollama pull qwen2.5-coder:14b
 ```
 
-### 4. Run
+#### 4. Start
 ```bash
-# Terminal 1 — start the AI engine
+# Terminal 1 — AI engine
 ollama serve
 
-# Terminal 2 — start the app
+# Terminal 2 — VIKA
 python app.py
 ```
 
-Then open **http://localhost:5000** in your browser. 🎉
+Open **http://localhost:5000** 🎉
 
 ---
 
-## 🧠 How to use it
+## 🧠 How to use VIKA
 
-| Action | What it does |
-| --- | --- |
-| **Chat** | Ask anything — code help, explanations, debugging. |
-| **Build** | Describe an app ("build a calculator") — the AI generates it live. |
-| **Preview tab** | See your app render in real time. |
-| **Code tab** | View and edit the generated files, then save. |
-| **ZIP button** | Download the whole project. |
-| **New button** | Start a fresh project. |
-| **Model dropdown** | Switch between installed AI models. |
+| Mode | What it does |
+|------|-------------|
+| **Chat** | Ask anything — code help, explanations, debugging, any question |
+| **Build** | Describe an app ("build a to-do list with dark UI") — VIKA writes it live |
+| **Preview tab** | See your generated app render in real time |
+| **Code tab** | Browse and edit generated files with Monaco editor |
+| **ZIP button** | Download the whole project as a folder you can run anywhere |
+| **New button** | Start a fresh project |
+| **Model dropdown** | Switch between all installed Ollama models |
+| **Terminal (>_ )** | Real shell inside your project folder — run node, npm, python, anything |
+| **Settings (gear)** | Customise editor theme, font, colours, behaviour |
 
 ---
 
-## ⚙️ Configuration
+## 🤖 Recommended models
 
-Set these as environment variables (all optional):
+| Model | RAM needed | Speed | Quality | Command |
+|-------|-----------|-------|---------|---------|
+| `qwen2.5-coder:3b` | 4 GB | ⚡⚡⚡ Fast | Good | `ollama pull qwen2.5-coder:3b` |
+| `qwen2.5-coder:7b` | 8 GB | ⚡⚡ Medium | Great | `ollama pull qwen2.5-coder:7b` |
+| `qwen2.5-coder:14b` | 16 GB | ⚡ Slower | Excellent | `ollama pull qwen2.5-coder:14b` |
+| `llama3.2:3b` | 4 GB | ⚡⚡⚡ Fast | Good | `ollama pull llama3.2:3b` |
+| `mistral:7b` | 8 GB | ⚡⚡ Medium | Great | `ollama pull mistral:7b` |
+
+Any model on [ollama.com/search](https://ollama.com/search) works — just pull it and select it from the dropdown.
+
+---
+
+## ⚙️ Configuration (all optional)
+
+Set these as environment variables or edit `docker-compose.yml`:
 
 | Variable | Default | Description |
-| --- | --- | --- |
-| `DEFAULT_MODEL` | `qwen2.5-coder:3b` | Ollama model to use. |
-| `ENABLE_WEB_SEARCH` | `True` | Toggle real-time web search. |
-| `ENABLE_VERSION_CHECK` | `True` | Toggle package version lookups. |
-| `MAX_TOKENS` | `2048` | Max response length. |
-| `TEMPERATURE` | `0.7` | Response creativity. |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server URL. |
-| `BRAVE_API_KEY` | _(empty)_ | Optional Brave Search key. |
+|----------|---------|-------------|
+| `DEFAULT_MODEL` | `qwen2.5-coder:7b` | Ollama model to load |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server address |
+| `VIKA_PORT` | `5000` | Port the web app listens on |
+| `ENABLE_WEB_SEARCH` | `True` | Real-time web search for current info |
+| `MAX_TOKENS` | `4096` | Max response length |
+| `TEMPERATURE` | `0.75` | Response creativity (0 = precise, 1 = creative) |
+| `APP_PASSWORD` | _(empty)_ | Protect the app with a password |
+| `TERMINAL_PASSWORD` | _(empty)_ | Enable terminal on published/remote deployments |
+| `BRAVE_API_KEY` | _(empty)_ | Optional Brave Search API key for better search |
 
 ---
 
@@ -102,37 +152,44 @@ Set these as environment variables (all optional):
 
 ```
 ai-assistant-unlimited/
-├── app.py                 # Flask server & API routes
-├── assistant.py           # AI logic: Ollama calls, web search, version checks
-├── builder.py             # Turns AI output into files, live preview, ZIP export
-├── config.py              # Settings & environment variables
+├── app.py              # Flask server & all API routes
+├── assistant.py        # AI logic: Ollama calls, web search, version checks
+├── builder.py          # Turns AI output into files, live preview, ZIP export
+├── knowledge.py        # Three-tier speed system: instant cache + learned Q&A
+├── terminal.py         # WebSocket-backed real terminal (xterm.js + PTY)
+├── config.py           # Settings & environment variables
 ├── templates/
-│   └── index.html         # Two-pane chat + workspace UI
-├── start_production.sh     # Production startup (Ollama + web server)
-├── requirements.txt
-└── README.md
+│   └── index.html      # Full IDE UI (Monaco editor, file explorer, preview)
+├── static/
+│   ├── app.js          # Frontend: streaming chat, file cards, workspace
+│   └── styles.css      # UI styles
+├── docker-compose.yml  # One-command Docker setup
+├── Dockerfile          # VIKA container image
+├── setup.sh            # Automated installer (Linux/macOS)
+├── setup.ps1           # Automated installer (Windows PowerShell)
+├── start_production.sh # Production startup (Ollama + gunicorn)
+└── requirements.txt
 ```
 
 ---
 
 ## 🔌 Tech stack
 
-- **Backend:** Python · Flask · Gunicorn
-- **AI:** Ollama (local LLMs — Qwen2.5-Coder)
-- **Frontend:** Vanilla HTML/CSS/JS (no build step)
+- **Backend:** Python · Flask · flask-sock (WebSockets)
+- **AI:** Ollama (local LLMs — any model)
+- **Editor:** Monaco (same engine as VS Code)
+- **Terminal:** xterm.js + PTY
 - **Search:** DuckDuckGo / Brave
+- **Frontend:** Vanilla HTML/CSS/JS (zero build step)
 
 ---
 
 ## ⚠️ Honest expectations
 
-This is a genuinely useful tool, but please know:
-
-- It runs **open-source models**, which are great for help and drafts but **can make
-  mistakes** — always review generated code.
-- It is **not self-learning** — model knowledge is fixed at its training date. Web search
-  adds current facts, and you can `ollama pull` newer models over time.
-- It does **not self-heal** — if something breaks, just restart it.
+- Runs **open-source models** — great for help and drafts, but **can make mistakes**. Always review generated code.
+- **Not self-learning** — model knowledge is fixed at its training date. Web search adds current facts. Pull newer models with `ollama pull`.
+- **Completely private** — nothing leaves your machine. No telemetry, no cloud calls.
+- **Not self-healing** — if something crashes, just rerun the start command.
 
 ---
 

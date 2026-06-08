@@ -1,0 +1,48 @@
+services:
+
+  # ─── Local AI engine (Ollama) ───────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama   # model files are cached here between runs
+    restart: unless-stopped
+    # GPU support: uncomment the block below if you have an NVIDIA GPU
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  # ─── VIKA web app ───────────────────────────────────────────────────────────
+  vika:
+    build: .
+    ports:
+      - "8080:5000"       # open http://localhost:8080 in your browser
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      DEFAULT_MODEL: qwen2.5-coder:7b    # change to :3b for less RAM, :14b for best quality
+      ENABLE_WEB_SEARCH: "true"
+      # Optional — uncomment and set a password to protect the app
+      # APP_PASSWORD: your_password_here
+      # Optional — enables the terminal on this machine (leave blank to disable)
+      # TERMINAL_PASSWORD: your_terminal_password_here
+    depends_on:
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ./generated_project:/app/generated_project   # your built projects persist here
+      - ./vika_knowledge.json:/app/vika_knowledge.json  # learned Q&A cache persists
+    restart: unless-stopped
+
+volumes:
+  ollama_models:

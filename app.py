@@ -897,5 +897,6 @@ if __name__ == "__main__":
     print(f"   Model: {DEFAULT_MODEL}")
     print(f"   Web Search: {'Enabled ✅' if ENABLE_WEB_SEARCH else 'Disabled ❌'}")
     print(f"   Version Checking: {'Enabled ✅' if ENABLE_VERSION_CHECK else 'Disabled ❌'}")
-    print("   Running at http://0.0.0.0:5000")
-    app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
+    PORT = int(os.environ.get("VIKA_PORT", 5000))
+    print(f"   Running at http://0.0.0.0:{PORT}")
+    app.run(host="0.0.0.0", port=PORT, debug=False, threaded=True)

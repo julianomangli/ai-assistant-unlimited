@@ -457,13 +457,13 @@ class AIAssistant:
             self.conversation_history.append({"role": "assistant", "content": instant})
             return
 
-        # ── Tier 2: Knowledge cache — exact match, returned instantly ─────────
+        # ── Tier 2: Knowledge cache — exact + fuzzy match, returned instantly ──
         # Only use cache for standalone questions (not mid-conversation follow-ups)
-        msg_short = len(message) <= 120
+        msg_short = len(message) <= 150
         if msg_short and not self.conversation_history:
-            cached = knowledge.get(message)
+            cached = knowledge.get(message) or knowledge.get_fuzzy(message)
             if cached:
-                yield {"t": "s", "v": "⚡ Found in knowledge base — instant answer"}
+                yield {"t": "s", "v": "⚡ Instant answer from knowledge base"}
                 # Stream in small chunks for a natural feel
                 for i in range(0, len(cached), 80):
                     yield {"t": "c", "v": cached[i:i+80]}

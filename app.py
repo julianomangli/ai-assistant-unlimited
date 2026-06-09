@@ -654,6 +654,7 @@ def ready():
 
 @app.route("/api/status", methods=["GET"])
 def status():
+    import knowledge
     assistant = get_or_create_assistant()
     models = assistant.get_available_models()
     return jsonify({
@@ -662,6 +663,7 @@ def status():
         "models": models,
         "web_search": ENABLE_WEB_SEARCH,
         "version_check": ENABLE_VERSION_CHECK,
+        "knowledge_entries": knowledge.size(),
     })
 
 

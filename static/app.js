@@ -523,6 +523,7 @@ function langForPath(path){
 function showEditorEmpty(show){
   $("#editorEmpty").classList.toggle("hidden", !show);
   $("#editorHost").style.display = show ? "none" : "block";
+  const qb = $("#quickBar"); if(qb){ qb.classList.toggle("hidden", show); }
   $("#tabbar").style.display = tabs.size ? "flex" : "none";
 }
 function renderTabs(){
@@ -656,6 +657,8 @@ function editorOptions(){
     stickyScroll: { enabled: settings.sticky },
     bracketPairColorization: { enabled: settings.bracketColors },
     guides: { indentation: settings.indentGuides, bracketPairs: settings.bracketColors },
+    inlineSuggest: { enabled: true, showToolbar: "onHover" },
+    quickSuggestions: { other: true, comments: false, strings: false },
   };
 }
 function applyEditorSettings(){
@@ -692,10 +695,179 @@ function initMonaco(){
     window.__editor.onDidChangeCursorPosition(e=>{
       $("#sbPos").textContent = `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
     });
+    registerInlineAI();
+    wireDoubleSpaceTrigger();
     monacoReady = true;
     showEditorEmpty(true);
   }, function(){ clearTimeout(watchdog); fail("Code editor failed to load (no internet?) — using a basic editor."); });
 }
+
+// ===================== Copilot-style inline AI completion =====================
+let aiCompleteEnabled = true;
+let _aiAbort = null;
+const _aiCache = new Map(); // key -> completion text
+function aiKey(prefix, suffix){ return prefix.slice(-300) + "\u0000" + suffix.slice(0,120); }
+
+async function fetchCompletion(prefix, suffix, language, signal){
+  const key = aiKey(prefix, suffix);
+  if(_aiCache.has(key)) return _aiCache.get(key);
+  let text = "";
+  try{
+    const r = await fetch("/api/complete", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ prefix, suffix, language }),
+      signal,
+    });
+    if(r.ok){ text = (await r.json()).completion || ""; }
+  }catch(e){ /* aborted or offline → no ghost text */ }
+  if(text){ _aiCache.set(key, text); if(_aiCache.size>120){ _aiCache.delete(_aiCache.keys().next().value); } }
+  return text;
+}
+
+function registerInlineAI(){
+  const m = window.monaco;
+  m.languages.registerInlineCompletionsProvider({ pattern: "**" }, {
+    provideInlineCompletions: async (model, position, ctx, token) => {
+      if(!aiCompleteEnabled) return { items: [] };
+      const offset = model.getOffsetAt(position);
+      const full = model.getValue();
+      const prefix = full.slice(0, offset);
+      const suffix = full.slice(offset);
+      // Skip mid-word so we don't fight normal IntelliSense.
+      const lineToCursor = model.getValueInRange({
+        startLineNumber: position.lineNumber, startColumn: 1,
+        endLineNumber: position.lineNumber, endColumn: position.column,
+      });
+      if(/\w$/.test(lineToCursor) && ctx.triggerKind === 0) {
+        // automatic trigger mid-word: still allow but keep it snappy
+      }
+      if(_aiAbort){ try{ _aiAbort.abort(); }catch(e){} }
+      _aiAbort = new AbortController();
+      const lang = model.getLanguageId ? model.getLanguageId() : "";
+      const completion = await fetchCompletion(prefix, suffix, lang, _aiAbort.signal);
+      if(token.isCancellationRequested || !completion) return { items: [] };
+      return {
+        items: [{
+          insertText: completion,
+          range: new m.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+        }],
+      };
+    },
+    freeInlineCompletions: () => {},
+  });
+}
+
+// "Press space twice" → instantly pre-show what the AI would write.
+function wireDoubleSpaceTrigger(){
+  let lastSpace = 0;
+  window.__editor.onKeyDown((e)=>{
+    const isSpace = e.keyCode === window.monaco.KeyCode.Space;
+    if(!isSpace) { lastSpace = 0; return; }
+    const now = Date.now();
+    if(now - lastSpace < 350){
+      lastSpace = 0;
+      // Remove the two trailing spaces, then ask for a suggestion at the cursor.
+      const ed = window.__editor;
+      setTimeout(()=>{
+        const pos = ed.getPosition();
+        if(pos && pos.column >= 3){
+          ed.executeEdits("dbl-space", [{
+            range: new window.monaco.Range(pos.lineNumber, pos.column-2, pos.lineNumber, pos.column),
+            text: "",
+          }]);
+        }
+        ed.trigger("dbl-space", "editor.action.inlineSuggest.trigger", {});
+      }, 0);
+    } else {
+      lastSpace = now;
+    }
+  });
+}
+
+// ===================== Mobile / quick code-shortcut toolbar =====================
+const QUICK_KEYS = [
+  { l:"Tab",  i:"\t" },
+  { l:"{ }",  i:"{}", back:1 },
+  { l:"( )",  i:"()", back:1 },
+  { l:"[ ]",  i:"[]", back:1 },
+  { l:"< >",  i:"<>", back:1 },
+  { l:"\" \"", i:'""', back:1 },
+  { l:"' '",  i:"''", back:1 },
+  { l:"` `",  i:"``", back:1 },
+  { l:";",    i:";" },
+  { l:":",    i:":" },
+  { l:"=",    i:" = " },
+  { l:"=>",   i:" => " },
+  { l:"&&",   i:" && " },
+  { l:"||",   i:" || " },
+  { l:"!",    i:"!" },
+  { l:".",    i:"." },
+  { l:"_",    i:"_" },
+  { l:"$",    i:"$" },
+  { l:"#",    i:"#" },
+  { l:"/",    i:"/" },
+  { l:"|",    i:"|" },
+  { l:"const", i:"const " },
+  { l:"let",  i:"let " },
+  { l:"func", i:"function () {\n  \n}", back:8 },
+  { l:"if",   i:"if () {\n  \n}", back:7 },
+  { l:"for",  i:"for (let i = 0; i < ; i++) {\n  \n}", back:12 },
+  { l:"log",  i:"console.log()", back:1 },
+  { l:"ret",  i:"return " },
+  { l:"imp",  i:"import  from ''", back:7 },
+];
+
+function insertSnippet(text, back){
+  if(monacoReady && window.__editor){
+    const ed = window.__editor;
+    ed.focus();
+    const sel = ed.getSelection();
+    ed.executeEdits("quickkey", [{ range: sel, text, forceMoveMarkers: true }]);
+    if(back){
+      const p = ed.getPosition();
+      ed.setPosition({ lineNumber: p.lineNumber, column: Math.max(1, p.column - back) });
+    }
+    return;
+  }
+  if(fallbackEl){
+    const el = fallbackEl, s = el.selectionStart, e = el.selectionEnd;
+    el.value = el.value.slice(0,s) + text + el.value.slice(e);
+    const caret = s + text.length - (back||0);
+    el.selectionStart = el.selectionEnd = caret;
+    el.focus();
+    el.dispatchEvent(new Event("input"));
+  }
+}
+
+function buildQuickBar(){
+  const bar = $("#quickBar");
+  if(!bar) return;
+  QUICK_KEYS.forEach(k=>{
+    const b = document.createElement("button");
+    b.className = "qk-btn";
+    b.textContent = k.l;
+    b.type = "button";
+    b.onmousedown = (e)=>{ e.preventDefault(); };
+    b.onclick = ()=> insertSnippet(k.i, k.back||0);
+    bar.appendChild(b);
+  });
+  // Trailing AI + undo/redo controls
+  const ai = document.createElement("button");
+  ai.className = "qk-btn qk-ai";
+  ai.textContent = "✨ AI";
+  ai.title = "Suggest code at the cursor";
+  ai.type = "button";
+  ai.onmousedown = (e)=>e.preventDefault();
+  ai.onclick = ()=>{
+    if(monacoReady && window.__editor){
+      window.__editor.focus();
+      window.__editor.trigger("quickbar", "editor.action.inlineSuggest.trigger", {});
+    }
+  };
+  bar.appendChild(ai);
+}
+
 function enableFallback(msg){
   if(fallbackEl) return;
   monacoReady = false;
@@ -1324,6 +1496,7 @@ syncSettingsUI();
 restoreChat();
 try{ setMode(localStorage.getItem(STORE.mode)||"chat"); }catch(e){ setMode("chat"); }
 initMonaco();
+buildQuickBar();
 loadFiles();
 setView("explorer");
 _initReady();

@@ -426,6 +426,49 @@ class AIAssistant:
         resp.raise_for_status()
         return resp
 
+    def complete_code(self, prefix: str, suffix: str = "", language: str = "") -> str:
+        """GitHub Copilot-style fill-in-the-middle completion.
+
+        qwen2.5-coder is trained for FIM, so we feed the raw FIM template to
+        /api/generate. Returns ONLY the text to insert at the cursor (ghost text).
+        Fast: low temperature, small token budget, hard stop tokens.
+        """
+        # Keep context tight so the model stays fast and on-task.
+        prefix = prefix[-2000:]
+        suffix = suffix[:600]
+        fim = f"<|fim_prefix|>{prefix}<|fim_suffix|>{suffix}<|fim_middle|>"
+        payload = {
+            "model": self.model,
+            "prompt": fim,
+            "raw": True,
+            "stream": False,
+            "options": {
+                "num_predict": 96,
+                "temperature": 0.15,
+                "top_p": 0.9,
+                "stop": [
+                    "<|endoftext|>", "<|fim_pad|>", "<|fim_prefix|>",
+                    "<|fim_suffix|>", "<|fim_middle|>", "<|file_sep|>",
+                    "<|repo_name|>",
+                ],
+            },
+        }
+        try:
+            resp = requests.post(
+                f"{OLLAMA_BASE_URL}/api/generate",
+                json=payload,
+                timeout=30,
+            )
+            resp.raise_for_status()
+            out = resp.json().get("response", "")
+        except Exception:
+            return ""
+        # Trim any stray special tokens the model may echo.
+        for tok in ("<|endoftext|>", "<|fim_pad|>", "<|fim_middle|>",
+                    "<|fim_suffix|>", "<|fim_prefix|>", "<|file_sep|>"):
+            out = out.replace(tok, "")
+        return out
+
     def chat(self, message: str, max_tokens: int = None) -> str:
         context = self._build_context(message)
         user_content = message

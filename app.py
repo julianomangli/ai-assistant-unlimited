@@ -681,6 +681,23 @@ def models():
     return jsonify({"models": assistant.get_available_models()})
 
 
+@app.route("/api/complete", methods=["POST"])
+def complete():
+    """GitHub Copilot-style inline code completion (ghost text)."""
+    data = request.get_json(force=True) or {}
+    prefix = data.get("prefix", "")
+    suffix = data.get("suffix", "")
+    language = data.get("language", "")
+    if not prefix.strip() and not suffix.strip():
+        return jsonify({"completion": ""})
+    assistant = get_or_create_assistant()
+    try:
+        completion = assistant.complete_code(prefix, suffix, language)
+    except Exception:
+        completion = ""
+    return jsonify({"completion": completion})
+
+
 # ----------------------------- Terminal -----------------------------
 
 @app.route("/api/terminal/status", methods=["GET"])

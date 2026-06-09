@@ -691,6 +691,10 @@ def complete():
     if not prefix.strip() and not suffix.strip():
         return jsonify({"completion": ""})
     assistant = get_or_create_assistant()
+    # Stay quiet (no ghost text) if the engine/model isn't ready — never block
+    # the editor or pile up expensive generate calls while the model downloads.
+    if _ensure_ready(assistant, assistant.model) is not None:
+        return jsonify({"completion": ""})
     try:
         completion = assistant.complete_code(prefix, suffix, language)
     except Exception:

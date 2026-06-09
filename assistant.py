@@ -465,7 +465,8 @@ class AIAssistant:
             return ""
         # Trim any stray special tokens the model may echo.
         for tok in ("<|endoftext|>", "<|fim_pad|>", "<|fim_middle|>",
-                    "<|fim_suffix|>", "<|fim_prefix|>", "<|file_sep|>"):
+                    "<|fim_suffix|>", "<|fim_prefix|>", "<|file_sep|>",
+                    "<|repo_name|>"):
             out = out.replace(tok, "")
         return out
 

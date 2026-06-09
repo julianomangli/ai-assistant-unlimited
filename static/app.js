@@ -725,25 +725,48 @@ async function fetchCompletion(prefix, suffix, language, signal){
   return text;
 }
 
+function _delay(ms, token){
+  return new Promise((resolve, reject)=>{
+    const id = setTimeout(()=>resolve(true), ms);
+    if(token && token.onCancellationRequested){
+      token.onCancellationRequested(()=>{ clearTimeout(id); reject(new Error("cancelled")); });
+    }
+  });
+}
+
 function registerInlineAI(){
   const m = window.monaco;
+  // 0 = Automatic (typing), 1 = Explicit (double-space / ✨ button / Alt+\)
+  const EXPLICIT = (m.languages.InlineCompletionTriggerKind &&
+                    m.languages.InlineCompletionTriggerKind.Explicit) || 1;
   m.languages.registerInlineCompletionsProvider({ pattern: "**" }, {
     provideInlineCompletions: async (model, position, ctx, token) => {
       if(!aiCompleteEnabled) return { items: [] };
-      const offset = model.getOffsetAt(position);
-      const full = model.getValue();
-      const prefix = full.slice(0, offset);
-      const suffix = full.slice(offset);
-      // Skip mid-word so we don't fight normal IntelliSense.
+      const explicit = ctx.triggerKind === EXPLICIT;
       const lineToCursor = model.getValueInRange({
         startLineNumber: position.lineNumber, startColumn: 1,
         endLineNumber: position.lineNumber, endColumn: position.column,
       });
-      if(/\w$/.test(lineToCursor) && ctx.triggerKind === 0) {
-        // automatic trigger mid-word: still allow but keep it snappy
+      // On automatic (typing) triggers, only fire at a safe boundary so we
+      // don't fight IntelliSense mid-word or spam the backend on every key.
+      if(!explicit){
+        const lastChar = lineToCursor.slice(-1);
+        if(!/[\s({\[;:,=>.]$/.test(lineToCursor) && lastChar !== "") return { items: [] };
       }
+      const offset = model.getOffsetAt(position);
+      const full = model.getValue();
+      const prefix = full.slice(0, offset);
+      const suffix = full.slice(offset);
+      if(prefix.trim().length < 2 && !explicit) return { items: [] };
+      // Debounce: wait for a typing pause; Monaco cancels the token on new keys.
+      try{ await _delay(explicit ? 0 : 300, token); }catch(e){ return { items: [] }; }
+      if(token.isCancellationRequested) return { items: [] };
       if(_aiAbort){ try{ _aiAbort.abort(); }catch(e){} }
       _aiAbort = new AbortController();
+      // Cancel the network wait if Monaco cancels this request.
+      if(token && token.onCancellationRequested){
+        token.onCancellationRequested(()=>{ try{ _aiAbort.abort(); }catch(e){} });
+      }
       const lang = model.getLanguageId ? model.getLanguageId() : "";
       const completion = await fetchCompletion(prefix, suffix, lang, _aiAbort.signal);
       if(token.isCancellationRequested || !completion) return { items: [] };
@@ -767,16 +790,27 @@ function wireDoubleSpaceTrigger(){
     const now = Date.now();
     if(now - lastSpace < 350){
       lastSpace = 0;
-      // Remove the two trailing spaces, then ask for a suggestion at the cursor.
       const ed = window.__editor;
       setTimeout(()=>{
         const pos = ed.getPosition();
-        if(pos && pos.column >= 3){
-          ed.executeEdits("dbl-space", [{
-            range: new window.monaco.Range(pos.lineNumber, pos.column-2, pos.lineNumber, pos.column),
-            text: "",
-          }]);
+        const sel = ed.getSelection();
+        const model = ed.getModel();
+        // Only strip the trailing pair if it's *exactly* two spaces, there's
+        // no active selection, and we're not in a multi-cursor edit — so we
+        // never delete real code if the cursor moved between presses.
+        const noSelection = sel && sel.isEmpty();
+        const singleCursor = ed.getSelections && ed.getSelections().length === 1;
+        if(model && pos && pos.column >= 3 && noSelection && singleCursor){
+          const before = model.getValueInRange(new window.monaco.Range(
+            pos.lineNumber, pos.column-2, pos.lineNumber, pos.column));
+          if(before === "  "){
+            ed.executeEdits("dbl-space", [{
+              range: new window.monaco.Range(pos.lineNumber, pos.column-2, pos.lineNumber, pos.column),
+              text: "",
+            }]);
+          }
         }
+        // Always offer a suggestion at the cursor, regardless of the edit above.
         ed.trigger("dbl-space", "editor.action.inlineSuggest.trigger", {});
       }, 0);
     } else {

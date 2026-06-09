@@ -1692,6 +1692,8 @@ async function ghRefreshFiles(){
     else { badge.textContent=count+" file"+(count===1?"":"s")+" ready to push"; badge.classList.add("has-files"); }
   }catch(e){}
   ghCheckPushReady();
+  // Keep the commit-message box smart-filled with the latest changes.
+  if(fileCache.length>0) ghAutoFillMsg(400);
 }
 
 function ghCheckPushReady(){
@@ -1727,6 +1729,7 @@ async function ghShowRepos(){
         localStorage.setItem(GH_REPO_KEY, repo.full_name);
         list.hidden=true;
         ghCheckPushReady();
+        ghAutoFillMsg(300);
       };
       list.appendChild(item);
     });
@@ -1755,6 +1758,7 @@ async function ghCreateRepo(){
     $("#ghRepo").value=fullName;
     localStorage.setItem(GH_REPO_KEY, fullName);
     ghCheckPushReady();
+    ghAutoFillMsg(300);
     toast("Repo created: "+fullName+" ✓","ok");
     ghLog("✓ Repo created: "+fullName, "ok");
     $("#ghLog").classList.add("visible");
@@ -1796,29 +1800,80 @@ $("#ghRepo").addEventListener("input", ()=>{
   localStorage.setItem(GH_REPO_KEY, $("#ghRepo").value);
   $("#ghRepoList").hidden=true;
   ghCheckPushReady();
+  // Re-evaluate changes against the newly chosen repo.
+  if($("#ghRepo").value.trim().includes("/")) ghAutoFillMsg(800);
 });
-$("#ghBranch").addEventListener("input", ()=>{ localStorage.setItem(GH_BRANCH_KEY, $("#ghBranch").value); });
+$("#ghBranch").addEventListener("input", ()=>{ localStorage.setItem(GH_BRANCH_KEY, $("#ghBranch").value); ghAutoFillMsg(800); });
 $("#ghMyRepos").onclick = ()=>ghShowRepos();
 $("#ghNewRepo").onclick = ()=>ghCreateRepo();
 
-// Generate commit message with AI
-$("#ghGenMsg").onclick = async ()=>{
-  if(fileCache.length===0){ toast("No project files yet — build something first."); return; }
-  $("#ghGenMsg").disabled=true;
-  const orig = $("#ghGenMsg").innerHTML;
-  $("#ghGenMsg").textContent="Thinking…";
+// ---- Smart commit message: always keep the box AI-filled ----
+let _ghMsgBusy = false;
+// Mark the box as AI-written so auto-refresh can replace it, but a human edit
+// clears the flag and we never overwrite what the user typed.
+$("#ghCommitMsg").addEventListener("input", ()=>{ delete $("#ghCommitMsg").dataset.ai; });
+
+let _ghMsgPending = false;
+async function ghGenerateMsg(auto=false){
+  const box = $("#ghCommitMsg");
+  if(fileCache.length===0){ if(!auto) toast("No project files yet — build something first."); return; }
+  // On auto runs, never clobber a message the user is typing by hand.
+  if(auto && box.value.trim() && box.dataset.ai!=="1") return;
+  // One generation at a time; queue a single follow-up so the final result
+  // reflects the latest repo/branch/files instead of stale state.
+  if(_ghMsgBusy){ if(auto) _ghMsgPending = true; return; }
+  _ghMsgBusy = true;
+  const btn = $("#ghGenMsg");
+  const orig = btn.innerHTML; btn.disabled=true; btn.textContent="Thinking…";
+  const ph = box.placeholder;
+  if(auto) box.placeholder="✨ Writing a commit message…";
   try{
-    const r = await fetch("/api/github/commit-msg", {method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+    const token  = localStorage.getItem(GH_KEY) || "";
+    const repo   = ($("#ghRepo").value||"").trim();
+    const branch = ($("#ghBranch").value||"").trim() || "main";
+    const r = await fetch("/api/github/commit-msg", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({token, repo, branch}),
+    });
     const d = await r.json();
     if(d.error) throw new Error(d.error);
-    $("#ghCommitMsg").value = d.message;
-    toast("Commit message ready ✓", "ok");
+    // Re-check AFTER the round-trip: if the user typed while we waited, their
+    // text wins (the input listener cleared dataset.ai) — never overwrite it.
+    if(auto && box.value.trim() && box.dataset.ai!=="1") return;
+    if(d.no_changes){
+      // Connected with nothing new since the last commit.
+      if(box.dataset.ai==="1" || !box.value.trim()){
+        box.value=""; delete box.dataset.ai;
+        box.placeholder="No changes since the last commit";
+      }
+      if(!auto) toast("Nothing new since your last commit ✓","ok");
+      return;
+    }
+    if(d.message){
+      box.value = d.message;
+      box.dataset.ai = "1";
+      if(!auto) toast("Commit message ready ✓", "ok");
+    }
   } catch(e){
-    toast("Could not generate: "+e.message);
+    if(!auto) toast("Could not generate: "+e.message);
   } finally {
-    $("#ghGenMsg").innerHTML=orig; $("#ghGenMsg").disabled=false;
+    btn.innerHTML=orig; btn.disabled=false;
+    if(box.placeholder==="✨ Writing a commit message…") box.placeholder=ph;
+    _ghMsgBusy = false;
+    // Run the queued follow-up against the now-current state.
+    if(_ghMsgPending){ _ghMsgPending=false; ghAutoFillMsg(150); }
   }
-};
+}
+
+// Manual "Generate" button → always regenerate.
+$("#ghGenMsg").onclick = ()=>ghGenerateMsg(false);
+
+// Debounced auto-fill so it follows the latest changes without spamming the AI.
+let _ghMsgTimer = null;
+function ghAutoFillMsg(delay=600){
+  clearTimeout(_ghMsgTimer);
+  _ghMsgTimer = setTimeout(()=>ghGenerateMsg(true), delay);
+}
 
 // Push to GitHub
 $("#ghPush").onclick = async ()=>{
@@ -1853,8 +1908,8 @@ $("#ghPush").onclick = async ()=>{
     openLink.href = d.repo_url;
     openLink.textContent = "🔗 Open "+d.repo_url.replace("https://github.com/","")+" on GitHub";
     openLink.hidden = false;
-    // Clear commit message so next push needs a fresh one
-    $("#ghCommitMsg").value="";
+    // Clear commit message; ghRefreshFiles() below re-fills it smartly.
+    $("#ghCommitMsg").value=""; delete $("#ghCommitMsg").dataset.ai;
   } catch(e){
     ghLog("✗ "+e.message, "err");
     toast("Push failed: "+e.message);

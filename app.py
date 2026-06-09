@@ -800,29 +800,117 @@ def terminal_ws(ws):
         term.terminate(proc, master_fd)
 
 
+def _git_blob_sha(content_bytes):
+    """Compute the same SHA-1 Git uses for a blob, so we can diff against a repo
+    tree without downloading any file contents."""
+    import hashlib
+    h = hashlib.sha1()
+    h.update(b"blob " + str(len(content_bytes)).encode() + b"\0" + content_bytes)
+    return h.hexdigest()
+
+
+def _github_changes(token, owner_repo, branch):
+    """Return (added, modified, removed) lists comparing the local project to the
+    last commit on the given GitHub branch. Returns None if it can't be computed
+    (no token/repo, repo empty, or any API hiccup) so the caller can fall back."""
+    import requests as req_lib
+    if not token or not owner_repo or "/" not in owner_repo:
+        return None
+    owner, repo = owner_repo.split("/", 1)
+    api = "https://api.github.com"
+    hdrs = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "AI-Assistant-Unlimited",
+    }
+    try:
+        ref = req_lib.get(f"{api}/repos/{owner}/{repo}/git/ref/heads/{branch}",
+                          headers=hdrs, timeout=20)
+        if ref.status_code != 200:
+            return None  # branch/repo has no commits yet → treat as initial
+        commit_sha = ref.json()["object"]["sha"]
+        tr = req_lib.get(f"{api}/repos/{owner}/{repo}/git/trees/{commit_sha}?recursive=1",
+                         headers=hdrs, timeout=20)
+        if tr.status_code != 200:
+            return None
+        tree_data = tr.json()
+        # GitHub caps recursive trees; a truncated tree would produce a wrong diff
+        # (missing files look "added/removed"), so fall back to a project summary.
+        if tree_data.get("truncated"):
+            return None
+        remote = {it["path"]: it["sha"] for it in tree_data.get("tree", [])
+                  if it.get("type") == "blob"}
+    except Exception:
+        return None
+
+    local = {}
+    for path in builder.list_files():
+        full = os.path.join(builder.PROJECT_DIR, path)
+        try:
+            with open(full, "rb") as f:
+                local[path] = _git_blob_sha(f.read())
+        except Exception:
+            pass
+    added    = sorted(p for p in local if p not in remote)
+    modified = sorted(p for p in local if p in remote and local[p] != remote[p])
+    removed  = sorted(p for p in remote if p not in local)
+    return added, modified, removed
+
+
 @app.route("/api/github/commit-msg", methods=["POST"])
 def github_commit_msg():
-    """Ask the AI to write a smart commit message for the current project."""
+    """Write a smart commit message. When a token+repo are supplied we diff the
+    local project against the last commit and describe ONLY what changed; otherwise
+    we summarize the whole project (initial-commit style). Always returns a message
+    so the input box can stay auto-filled."""
+    data = request.json or {}
+    token      = (data.get("token") or "").strip()
+    owner_repo = (data.get("repo") or "").strip()
+    branch     = (data.get("branch") or "main").strip() or "main"
+    assistant = get_or_create_assistant()
     try:
         files = builder.list_files()
         if not files:
             return jsonify({"error": "No project files yet."}), 400
-        snippets = []
-        for path in files[:12]:
-            try:
-                content = builder.read_file(path)
-                snippets.append(f"- {path}: {content[:180].strip()}")
-            except Exception:
-                snippets.append(f"- {path}")
-        summary = "\n".join(snippets)
-        prompt = (
-            f"Write a concise, professional git commit message (one line, under 72 characters) "
-            f"for a web project containing these files:\n\n{summary}\n\n"
-            "Return ONLY the commit message text. No quotes, no explanation."
-        )
+
+        change_summary = None
+        scope = "project"
+        changes = _github_changes(token, owner_repo, branch)
+        if changes is not None:
+            added, modified, removed = changes
+            if not (added or modified or removed):
+                return jsonify({"message": "", "no_changes": True})
+            parts = []
+            if added:    parts.append("Added files: "    + ", ".join(added[:25]))
+            if modified: parts.append("Modified files: " + ", ".join(modified[:25]))
+            if removed:  parts.append("Removed files: "  + ", ".join(removed[:25]))
+            change_summary = "\n".join(parts)
+            scope = "changes"
+
+        if change_summary:
+            prompt = (
+                "Write a concise, professional git commit message (one line, imperative "
+                "mood, under 72 characters) summarizing these changes since the last "
+                f"commit:\n\n{change_summary}\n\n"
+                "Return ONLY the commit message text. No quotes, no explanation."
+            )
+        else:
+            snippets = []
+            for path in files[:12]:
+                try:
+                    content = builder.read_file(path)
+                    snippets.append(f"- {path}: {content[:180].strip()}")
+                except Exception:
+                    snippets.append(f"- {path}")
+            summary = "\n".join(snippets)
+            prompt = (
+                f"Write a concise, professional git commit message (one line, under 72 "
+                f"characters) for a web project containing these files:\n\n{summary}\n\n"
+                "Return ONLY the commit message text. No quotes, no explanation."
+            )
         msg = assistant.chat(prompt, max_tokens=80)
         msg = msg.strip().strip('"').strip("'").split("\n")[0].strip()
-        return jsonify({"message": msg})
+        return jsonify({"message": msg, "scope": scope})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

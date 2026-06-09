@@ -39,6 +39,10 @@ You have **two ways** to use this app. Pick whichever fits.
 - **Build mode** — describe an app ("build a calculator", "make a to-do list"). The AI
   writes the code, it appears in the **Preview** tab on the right, and the files show up
   in the **Code** tab where you can view/edit them.
+- **Run button** (green ▶, top right, or press **F5** / Ctrl+Enter) — runs the file you
+  have open. HTML/SVG opens in the live **Preview**; Python, Node, Bun/TypeScript, Bash,
+  C/C++ and more run in the built-in **Terminal** and show their output. If a language's
+  tool isn't installed yet, install it once in the Terminal and Run again.
 - **ZIP button** (top right) — download your built project as a folder you can keep or run
   anywhere.
 - **New button** — start a fresh project (clears the chat and files).

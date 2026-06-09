@@ -515,6 +515,11 @@ textarea#input::placeholder{color:var(--text-3)}
 .guide-tip-warn{border-left-color:#f59e0b;background:rgba(245,158,11,.06)}
 .tbtn-guide{background:rgba(0,255,136,.12);color:#00ff88;border:1px solid rgba(0,255,136,.35)!important;border-radius:8px}
 .tbtn-guide:hover{opacity:.88}
+.tbtn-run{background:#00ff88;color:#06120b!important;border:1px solid #00ff88!important;border-radius:8px;font-weight:700}
+.tbtn-run svg{width:13px;height:13px}
+.tbtn-run:hover:not(:disabled){background:#3dffa3;color:#06120b!important;border-color:#3dffa3!important}
+.tbtn-run:disabled{opacity:.4;cursor:default}
+.tbtn-run.busy{opacity:.7;cursor:progress}
 .tbtn-signout{opacity:.7;text-decoration:none}
 .tbtn-signout:hover{opacity:1;color:var(--text)!important}
 

@@ -1114,6 +1114,11 @@ function connectTerm(){
     setTermStatus("connected", "ok");
     termSocket.send(JSON.stringify({auth:pw}));
     setTimeout(()=>{ try{ if(termFit) termFit.fit(); sendResize(); }catch(e){} }, 60);
+    // Flush a Run command that was queued while connecting.
+    if(_pendingTermCmd){
+      const c = _pendingTermCmd; _pendingTermCmd = null;
+      setTimeout(()=>{ if(termSocket && termSocket.readyState===1) termSocket.send(JSON.stringify({input:c})); }, 250);
+    }
   };
   termSocket.onmessage = ev=>{ if(term) term.write(ev.data); };
   termSocket.onclose = ()=>{
@@ -1144,6 +1149,88 @@ function toggleTerminal(){
 $("#termToggleAct").onclick = toggleTerminal;
 $("#termClose").onclick = closeTerminal;
 $("#termRestart").onclick = ()=>{ if(term) term.reset(); connectTerm(); };
+
+/* ===================== Run the open file ===================== */
+let _pendingTermCmd = null;
+// Send a shell command into the live terminal, opening/connecting it first.
+function sendToTerminal(cmd){
+  if(termInfo && termInfo.enabled === false){
+    toast("The terminal is turned off on the live site — turn it on to run code.");
+    return false;
+  }
+  openTerminal();
+  const line = cmd.endsWith("\n") ? cmd : cmd + "\n";
+  if(termSocket && termSocket.readyState === 1){
+    termSocket.send(JSON.stringify({input: line}));
+  } else {
+    // Terminal is (re)connecting — fire the command once it's ready.
+    _pendingTermCmd = line;
+  }
+  return true;
+}
+// Shell-quote a path safely (handles spaces and quotes).
+function shq(p){ return "'" + String(p).replace(/'/g, "'\\''") + "'"; }
+
+// Map a file extension → how to run it. base = filename without extension.
+const RUN_CMDS = {
+  py:  f => `python3 ${shq(f)}`,
+  pyw: f => `python3 ${shq(f)}`,
+  js:  f => `node ${shq(f)}`,
+  mjs: f => `node ${shq(f)}`,
+  cjs: f => `node ${shq(f)}`,
+  ts:  f => `bun run ${shq(f)}`,
+  mts: f => `bun run ${shq(f)}`,
+  tsx: f => `bun run ${shq(f)}`,
+  jsx: f => `bun run ${shq(f)}`,
+  sh:  f => `bash ${shq(f)}`,
+  bash:f => `bash ${shq(f)}`,
+  rb:  f => `ruby ${shq(f)}`,
+  php: f => `php ${shq(f)}`,
+  go:  f => `go run ${shq(f)}`,
+  lua: f => `lua ${shq(f)}`,
+  pl:  f => `perl ${shq(f)}`,
+  r:   f => `Rscript ${shq(f)}`,
+  rs:  (f,b)=> `rustc ${shq(f)} -o ${shq("/tmp/"+b)} && ${shq("/tmp/"+b)}`,
+  c:   (f,b)=> `gcc ${shq(f)} -o ${shq("/tmp/"+b)} && ${shq("/tmp/"+b)}`,
+  h:   (f,b)=> `gcc ${shq(f)} -o ${shq("/tmp/"+b)} && ${shq("/tmp/"+b)}`,
+  cpp: (f,b)=> `g++ ${shq(f)} -o ${shq("/tmp/"+b)} && ${shq("/tmp/"+b)}`,
+  cc:  (f,b)=> `g++ ${shq(f)} -o ${shq("/tmp/"+b)} && ${shq("/tmp/"+b)}`,
+  cxx: (f,b)=> `g++ ${shq(f)} -o ${shq("/tmp/"+b)} && ${shq("/tmp/"+b)}`,
+  java:f => `java ${shq(f)}`,
+};
+const PREVIEW_EXT = new Set(["html","htm","svg"]);
+
+async function runActiveFile(){
+  if(!activePath){ toast("Open a file first, then press Run."); return; }
+  const btn = $("#runBtn");
+  // Always save first so we run exactly what's on screen.
+  try{ await saveCurrent(); }catch(e){}
+  const ext = (activePath.split(".").pop() || "").toLowerCase();
+  const base = (activePath.split("/").pop() || activePath).replace(/\.[^.]+$/, "") || "program";
+
+  // HTML/SVG → live preview pane.
+  if(PREVIEW_EXT.has(ext)){
+    setView("preview");
+    $("#previewFrame").src = "/preview/" + activePath.split("/").map(encodeURIComponent).join("/") + "?t=" + Date.now();
+    toast("Previewing " + activePath, "ok");
+    return;
+  }
+
+  const make = RUN_CMDS[ext];
+  if(!make){
+    toast("No runner for .#{ext} files yet — open the terminal to run it your way.".replace("#{ext}", ext || "?"));
+    openTerminal();
+    return;
+  }
+  const cmd = make(activePath, base);
+  // clear keeps the terminal tidy on each run; a header shows what's running.
+  // Path is passed as a *quoted argument* to printf (never interpolated into
+  // the shell string) so filenames with shell metacharacters can't inject.
+  const header = `printf '\\033[1;32m▶ Running %s\\033[0m\\n' ${shq(activePath)}`;
+  if(btn){ btn.classList.add("busy"); setTimeout(()=>btn.classList.remove("busy"), 1200); }
+  sendToTerminal(`clear; ${header}; ${cmd}`);
+}
+$("#runBtn").onclick = runActiveFile;
 window.addEventListener("resize", ()=>{ if(termOpen && termFit){ try{ termFit.fit(); sendResize(); }catch(e){} } });
 
 /* Drag-to-resize the terminal panel height */
@@ -1194,6 +1281,7 @@ function allCommands(){
     {t:"New Project", h:"", kw:"new project reset clear start", run:()=>$("#newBtn").click()},
     {t:"Refresh Files", h:"", kw:"refresh reload files explorer", run:loadFiles},
 
+    {t:"Run File", h:"F5", kw:"run execute play start file python node bun preview", when:()=>!!activePath, run:runActiveFile},
     {t:"View: Explorer", h:"Ctrl+Shift+E", kw:"view explorer files sidebar", run:()=>setView("explorer")},
     {t:"View: Live Preview", h:"", kw:"view preview run app", run:()=>setView("preview")},
     {t:"View: Settings", h:"Ctrl+,", kw:"view settings preferences options", run:()=>setView("settings")},
@@ -1325,6 +1413,7 @@ const SHORTCUTS = [
     ["All Editor Commands","via Command Palette"],
   ]],
   ["View", [
+    ["Run File","F5 / Ctrl+Enter"],
     ["Toggle Sidebar","Ctrl+B"],
     ["Show Explorer","Ctrl+Shift+E"],
     ["Toggle Terminal","Ctrl+`"],
@@ -1401,6 +1490,8 @@ window.addEventListener("keydown", e=>{
   if(mod && e.altKey && k==="n"){ take(); $("#newFileBtn").click(); return; }                  // New file
   if(e.ctrlKey && e.key==="`"){ take(); toggleTerminal(); return; }                            // Terminal
   if(e.altKey && !mod && k==="z"){ take(); toggleWordWrap(); return; }                         // Word wrap
+  if(e.key==="F5"){ take(); runActiveFile(); return; }                                         // Run file
+  if(mod && e.key==="Enter"){ take(); runActiveFile(); return; }                               // Run file
 }, true);
 
 /* ===================== Chips ===================== */
